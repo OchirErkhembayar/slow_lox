@@ -1,19 +1,22 @@
 use std::io::Write;
 
+mod token;
+mod scanner;
+
 static mut HAD_ERROR: bool = false;
 
 fn main() {
 
     let args = std::env::args().collect::<Vec<String>>();
     if args.len() >= 2 {
-        run_file(&args[1]);
+        run_file(args[1].clone());
     } else {
         run_prompt();
     }
 }
 
-fn run_file(source: &String) {
-    run(&source);
+fn run_file(source: String) {
+    run(source);
 
     if unsafe { HAD_ERROR } {
         std::process::exit(65);
@@ -32,7 +35,7 @@ fn run_prompt() {
         if input.to_lowercase() == "q" {
             break;
         }
-        run(input);
+        run(input.to_string());
         unsafe {
             HAD_ERROR = false;
         }
@@ -40,8 +43,12 @@ fn run_prompt() {
     println!("Bye!");
 }
 
-fn run(input: &str) {
-    println!("{}", input);
+fn run(input: String) {
+    let mut scanner = scanner::Scanner::new(input);
+    let tokens = scanner.scan_tokens();
+    for token in tokens {
+        println!("{}", token.to_string());
+    }
 }
 
 fn error(line: usize, message: &str) {
