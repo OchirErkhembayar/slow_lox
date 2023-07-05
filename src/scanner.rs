@@ -111,7 +111,27 @@ impl Scanner {
                 self.make_token(token_type);
             },
             '/' => {
-                if self.match_char('/') {
+                if self.match_char('*') {
+                    while self.peek() != '*' && self.peak_next() != '/' && !self.is_at_end() {
+                        println!("I'm inside a block comment");
+                        if self.peek() == '\n' {
+                            self.line += 1;
+                        }
+                        self.advance();
+                    }
+                    if self.is_at_end() {
+                        error(self.line, "Unterminated block comment");
+                        return
+                    } else {
+                        self.advance();
+                    }
+                    if self.is_at_end() {
+                        error(self.line, "Unterminated block comment");
+                        return
+                    } else {
+                        self.advance();
+                    }
+                } else if self.match_char('/') {
                     while self.peek() != '\n' && !self.is_at_end() {
                         self.advance();
                     }

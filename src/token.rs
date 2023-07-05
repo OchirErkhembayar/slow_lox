@@ -21,6 +21,7 @@ impl Token {
 }
 
 #[derive(Debug, Clone)]
+#[allow(non_camel_case_types)]
 pub enum TokenType {
     // Single-character tokens.
     LEFT_PAREN,
