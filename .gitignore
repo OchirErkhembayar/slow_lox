@@ -1,0 +1,3 @@
+/target
+/default
+                            if l.position >= l.input.len() {
