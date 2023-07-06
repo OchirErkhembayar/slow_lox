@@ -2,6 +2,7 @@ use std::io::Write;
 
 mod token;
 mod scanner;
+mod expr;
 
 static mut HAD_ERROR: bool = false;
 
