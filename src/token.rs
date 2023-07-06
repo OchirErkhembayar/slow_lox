@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
@@ -20,7 +21,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum TokenType {
     // Single-character tokens.

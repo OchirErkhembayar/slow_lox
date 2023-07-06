@@ -112,8 +112,7 @@ impl Scanner {
             },
             '/' => {
                 if self.match_char('*') {
-                    while self.peek() != '*' && self.peak_next() != '/' && !self.is_at_end() {
-                        println!("I'm inside a block comment");
+                    while !(self.peek() == '*' && self.peak_next() == '/') && !self.is_at_end() {
                         if self.peek() == '\n' {
                             self.line += 1;
                         }
@@ -229,5 +228,24 @@ impl Scanner {
             return '\0';
         }
         self.source.chars().nth(self.current).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_block_comments() {
+        let mut scanner = Scanner::new("/* This is a block comment */".to_string());
+        let tokens = scanner.scan_tokens();
+        assert_eq!(Token::new(TokenType::EOF, String::new(), String::new(), 1), tokens[0]);
+    }
+
+    #[test]
+    fn test_block_comment_with_slashes_in_it() {
+        let mut scanner = Scanner::new("/* This is a block comment with // slashes in it */".to_string());
+        let tokens = scanner.scan_tokens();
+        assert_eq!(Token::new(TokenType::EOF, String::new(), String::new(), 1), tokens[0]);
     }
 }
