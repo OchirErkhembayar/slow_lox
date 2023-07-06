@@ -29,7 +29,7 @@ lazy_static! {
 fn match_keyword(identifier: &str) -> TokenType {
     match KEYWORDS.get(identifier) {
         Some(token_type) => token_type.clone(),
-        None => TokenType::IDENTIFIER(identifier.to_string()),
+        None => TokenType::IDENTIFIER,
     }
 }
 
@@ -58,7 +58,7 @@ impl Scanner {
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::EOF, String::new(), String::new(), self.line));
+        self.tokens.push(Token::new(TokenType::EOF, String::new(), self.line));
         &self.tokens
     }
 
@@ -68,47 +68,43 @@ impl Scanner {
 
     fn scan_token(&mut self) {
         match self.advance() {
-            '(' => self.make_token(TokenType::LEFT_PAREN),
-            ')' => self.make_token(TokenType::RIGHT_PAREN),
-            '{' => self.make_token(TokenType::LEFT_BRACE),
-            '}' => self.make_token(TokenType::RIGHT_BRACE),
-            ',' => self.make_token(TokenType::COMMA),
-            '.' => self.make_token(TokenType::DOT),
-            '-' => self.make_token(TokenType::MINUS),
-            '+' => self.make_token(TokenType::PLUS),
-            ';' => self.make_token(TokenType::SEMICOLON),
-            '*' => self.make_token(TokenType::STAR),
+            '(' => self.make_token(TokenType::LEFT_PAREN, String::from("(")),
+            ')' => self.make_token(TokenType::RIGHT_PAREN, String::from(")")),
+            '{' => self.make_token(TokenType::LEFT_BRACE, String::from("{")),
+            '}' => self.make_token(TokenType::RIGHT_BRACE, String::from("}")),
+            ',' => self.make_token(TokenType::COMMA, String::from(",")),
+            '.' => self.make_token(TokenType::DOT, String::from(".")),
+            '-' => self.make_token(TokenType::MINUS, String::from("-")),
+            '+' => self.make_token(TokenType::PLUS, String::from("+")),
+            ';' => self.make_token(TokenType::SEMICOLON, String::from(";")),
+            '*' => self.make_token(TokenType::STAR, String::from("*")),
             '!' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::BANG_EQUAL
+                if self.match_char('=') {
+                    self.make_token(TokenType::BANG_EQUAL, String::from("!="));
                 } else {
-                    TokenType::BANG
+                    self.make_token(TokenType::BANG, String::from("!"));
                 };
-                self.make_token(token_type);
             },
             '=' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::EQUAL_EQUAL
+                if self.match_char('=') {
+                    self.make_token(TokenType::EQUAL_EQUAL, String::from("=="));
                 } else {
-                    TokenType::EQUAL
-                };
-                self.make_token(token_type);
+                    self.make_token(TokenType::EQUAL, String::from("="));
+                }
             },
             '<' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::LESS_EQUAL
+                if self.match_char('=') {
+                    self.make_token(TokenType::LESS_EQUAL, String::from("<="));
                 } else {
-                    TokenType::LESS
-                };
-                self.make_token(token_type);
+                    self.make_token(TokenType::LESS, String::from("<"));
+                }
             },
             '>' => {
-                let token_type = if self.match_char('=') {
-                    TokenType::GREATER_EQUAL
+                if self.match_char('=') {
+                    self.make_token(TokenType::GREATER_EQUAL, String::from(">="));
                 } else {
-                    TokenType::GREATER
-                };
-                self.make_token(token_type);
+                    self.make_token(TokenType::GREATER, String::from(">"));
+                }
             },
             '/' => {
                 if self.match_char('*') {
@@ -135,7 +131,7 @@ impl Scanner {
                         self.advance();
                     }
                 } else {
-                    self.make_token(TokenType::SLASH);
+                    self.make_token(TokenType::SLASH, String::new());
                 }
             },
             ' ' | '\r' | '\t' => (),
@@ -164,7 +160,7 @@ impl Scanner {
 
         let value = self.source[self.start + 1..self.current - 1].to_string();
 
-        self.make_token(TokenType::STRING(value));
+        self.make_token(TokenType::STRING, value);
     }
 
     fn number(&mut self) {
@@ -182,7 +178,7 @@ impl Scanner {
 
         let value = self.source[self.start..self.current].parse::<f64>().unwrap();
 
-        self.make_token(TokenType::NUMBER(value));
+        self.make_token(TokenType::NUMBER, value.to_string());
     }
 
     fn identifier(&mut self) {
@@ -190,7 +186,9 @@ impl Scanner {
             self.advance();
         }
 
-        self.make_token(match_keyword(&self.source[self.start..self.current]));
+        let str = &self.source[self.start..self.current];
+
+        self.make_token(match_keyword(str), String::from(str));
     }
 
     fn peak_next(&self) -> char {
@@ -205,9 +203,9 @@ impl Scanner {
         self.source.chars().nth(self.current - 1).unwrap()
     }
 
-    fn make_token(&mut self, token_type: TokenType) {
+    fn make_token(&mut self, token_type: TokenType, literal: String) {
         self.tokens.push(
-            Token::new(token_type, String::new(), String::new(), self.line)
+            Token::new(token_type, literal, self.line)
         );
     }
 
@@ -239,13 +237,13 @@ mod tests {
     fn test_block_comments() {
         let mut scanner = Scanner::new("/* This is a block comment */".to_string());
         let tokens = scanner.scan_tokens();
-        assert_eq!(Token::new(TokenType::EOF, String::new(), String::new(), 1), tokens[0]);
+        assert_eq!(Token::new(TokenType::EOF, String::new(), 1), tokens[0]);
     }
 
     #[test]
     fn test_block_comment_with_slashes_in_it() {
         let mut scanner = Scanner::new("/* This is a block comment with // slashes in it */".to_string());
         let tokens = scanner.scan_tokens();
-        assert_eq!(Token::new(TokenType::EOF, String::new(), String::new(), 1), tokens[0]);
+        assert_eq!(Token::new(TokenType::EOF, String::new(), 1), tokens[0]);
     }
 }

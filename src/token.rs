@@ -2,22 +2,20 @@
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub literal: String,
     pub line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: String, line: usize) -> Token {
+    pub fn new(token_type: TokenType, lexeme: String, line: usize) -> Token {
         Token {
             token_type,
             lexeme,
-            literal,
             line,
         }
     }
 
     pub fn to_string(&self) -> String {
-        format!("{:?} {} {:?}", self.token_type, self.lexeme, self.literal)
+        format!("{:?} {}", self.token_type, self.lexeme)
     }
 }
 
@@ -48,9 +46,9 @@ pub enum TokenType {
     LESS_EQUAL,
 
     // Literals.
-    IDENTIFIER(String),
-    STRING(String),
-    NUMBER(f64),
+    IDENTIFIER,
+    STRING,
+    NUMBER,
 
     // Keywords.
     AND,

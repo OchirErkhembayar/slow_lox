@@ -4,7 +4,7 @@ mod token;
 mod scanner;
 mod expr;
 
-use crate::expr::{Binary, Expr, Literal};
+use crate::expr::{Binary, Expr, Literal, Grouping};
 use crate::token::{Token, TokenType};
 
 static mut HAD_ERROR: bool = false;
@@ -15,9 +15,8 @@ fn main() {
         Expr::Literal(
             Literal {
                 value: Token::new(
-                    TokenType::NUMBER(1.0),
-                    String::new(),
-                    String::new(),
+                    TokenType::NUMBER,
+                    String::from("123"),
                     1,
                 ),
             },
@@ -27,9 +26,8 @@ fn main() {
         Expr::Literal(
             Literal {
                 value: Token::new(
-                    TokenType::NUMBER(2.0),
-                    String::new(),
-                    String::new(),
+                    TokenType::NUMBER,
+                    String::from("2"),
                     1,
                 ),
             },
@@ -39,25 +37,28 @@ fn main() {
         Expr::Literal(
             Literal {
                 value: Token::new(
-                    TokenType::NUMBER(3.0),
-                    String::new(),
-                    String::new(),
+                    TokenType::NUMBER,
+                    String::from("3"),
                     1,
                 ),
             },
         )
     );
-    let expr2 = Expr::Binary(
-        Binary {
-            left: literal2,
-            operator: Token::new(TokenType::STAR, String::new(), String::new(), 1),
-            right: literal3,
-        }
+    let expr2 = Expr::Grouping(
+        Grouping {
+            expression: Box::new(Expr::Binary(
+                Binary {
+                    left: literal2,
+                    operator: Token::new(TokenType::STAR, String::from("*"), 1),
+                    right: literal3,
+                },
+            )),
+        },
     );
     let expr = Expr::Binary(
         Binary {
             left: literal1,
-            operator: Token::new(TokenType::STAR, String::new(), String::new(), 1),
+            operator: Token::new(TokenType::STAR, String::from("*"), 1),
             right: Box::new(expr2),
         }
     );
