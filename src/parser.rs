@@ -11,9 +11,10 @@ impl Parser {
         Parser { tokens, current: 0 }
     }
 
-    fn match_token(&self, token_types: Vec<TokenType>) -> bool {
+    fn match_token(&mut self, token_types: Vec<TokenType>) -> bool {
         for token_type in token_types {
             if self.check(token_type) {
+                self.advance();
                 return true;
             }
         }
@@ -170,7 +171,6 @@ impl Parser {
 
     fn unary(&mut self) -> Result<Expr, ParseError> {
         if self.peek().token_type == TokenType::BANG || self.peek().token_type == TokenType::MINUS {
-            println!("I'm in unary");
             let operator = self.advance();
             let right = self.unary()?;
             return Ok(Expr::Unary(Unary {
@@ -199,8 +199,6 @@ impl Parser {
         }
 
         if self.match_token(vec![TokenType::NUMBER, TokenType::STRING]) {
-            println!("Tokens: {:?}", self.tokens);
-            println!("Current : {}", self.current);
             return Ok(Expr::Literal(Literal {
                 value: self.previous(),
             }));
