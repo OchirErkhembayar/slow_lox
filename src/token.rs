@@ -13,13 +13,9 @@ impl Token {
             line,
         }
     }
-
-    pub fn to_string(&self) -> String {
-        format!("{:?} {}", self.token_type, self.lexeme)
-    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 #[allow(non_camel_case_types)]
 pub enum TokenType {
     // Single-character tokens.

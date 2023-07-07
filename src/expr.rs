@@ -1,42 +1,50 @@
 use crate::token::Token;
 
-pub enum Expr<'a> {
-    Binary(Binary<'a>),
-    Grouping(Grouping<'a>),
-    Literal(Literal<'a>),
-    Unary(Unary<'a>),
+#[derive(Clone)]
+pub enum Expr {
+    Binary(Binary),
+    Grouping(Grouping),
+    Literal(Literal),
+    Unary(Unary),
 }
 
-pub struct Binary<'a> {
-    pub left: Box<Expr<'a>>,
-    pub operator: &'a Token,
-    pub right: Box<Expr<'a>>,
+#[derive(Clone)]
+pub struct Binary {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
-pub struct Grouping<'a> {
-    pub expression: Box<Expr<'a>>,
+#[derive(Clone)]
+pub struct Grouping {
+    pub expression: Box<Expr>,
 }
 
-pub struct Literal<'a> {
-    pub value: &'a Token,
+#[derive(Clone)]
+pub struct Literal {
+    pub value: Token,
 }
 
-pub struct Unary<'a> {
-    pub operator: &'a Token,
-    pub right: Box<Expr<'a>>,
+#[derive(Clone)]
+pub struct Unary {
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
 pub fn print(expr: Expr) -> String {
     match expr {
         Expr::Binary(binary) => {
-            format!("({} {} {})", binary.operator.lexeme, print(*binary.left), print(*binary.right))
+            format!(
+                "({} {} {})",
+                binary.operator.lexeme,
+                print(*binary.left),
+                print(*binary.right)
+            )
         }
         Expr::Grouping(grouping) => {
             format!("(group {})", print(*grouping.expression))
         }
-        Expr::Literal(literal) => {
-            format!("{}", literal.value.lexeme)
-        }
+        Expr::Literal(literal) => literal.value.lexeme,
         Expr::Unary(unary) => {
             format!("({} {})", unary.operator.lexeme, print(*unary.right))
         }

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use lazy_static::lazy_static;
-use crate::token::{Token, TokenType};
 use crate::error;
+use crate::token::{Token, TokenType};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
@@ -28,7 +28,7 @@ lazy_static! {
 
 fn match_keyword(identifier: &str) -> TokenType {
     match KEYWORDS.get(identifier) {
-        Some(token_type) => token_type.clone(),
+        Some(token_type) => *token_type,
         None => TokenType::IDENTIFIER,
     }
 }
@@ -52,14 +52,15 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::EOF, String::new(), self.line));
-        &self.tokens
+        self.tokens
+            .push(Token::new(TokenType::EOF, String::new(), self.line));
+        self.tokens.clone()
     }
 
     fn is_at_end(&self) -> bool {
@@ -84,31 +85,31 @@ impl Scanner {
                 } else {
                     self.make_token(TokenType::BANG, String::from("!"));
                 };
-            },
+            }
             '=' => {
                 if self.match_char('=') {
                     self.make_token(TokenType::EQUAL_EQUAL, String::from("=="));
                 } else {
                     self.make_token(TokenType::EQUAL, String::from("="));
                 }
-            },
+            }
             '<' => {
                 if self.match_char('=') {
                     self.make_token(TokenType::LESS_EQUAL, String::from("<="));
                 } else {
                     self.make_token(TokenType::LESS, String::from("<"));
                 }
-            },
+            }
             '>' => {
                 if self.match_char('=') {
                     self.make_token(TokenType::GREATER_EQUAL, String::from(">="));
                 } else {
                     self.make_token(TokenType::GREATER, String::from(">"));
                 }
-            },
+            }
             '/' => {
                 if self.match_char('*') {
-                    while !(self.peek() == '*' && self.peak_next() == '/') && !self.is_at_end() {
+                    while !(self.is_at_end() || self.peek() == '*' && self.peak_next() == '/') {
                         if self.peek() == '\n' {
                             self.line += 1;
                         }
@@ -116,13 +117,12 @@ impl Scanner {
                     }
                     if self.is_at_end() {
                         error(self.line, "Unterminated block comment");
-                        return
+                        return;
                     } else {
                         self.advance();
                     }
                     if self.is_at_end() {
                         error(self.line, "Unterminated block comment");
-                        return
                     } else {
                         self.advance();
                     }
@@ -133,7 +133,7 @@ impl Scanner {
                 } else {
                     self.make_token(TokenType::SLASH, String::new());
                 }
-            },
+            }
             ' ' | '\r' | '\t' => (),
             '\n' => self.line += 1,
             '"' => self.string(),
@@ -153,7 +153,7 @@ impl Scanner {
 
         if self.is_at_end() {
             error(self.line, "Unterminated string");
-            return
+            return;
         }
 
         self.advance();
@@ -164,19 +164,21 @@ impl Scanner {
     }
 
     fn number(&mut self) {
-        while self.peek().is_digit(10) {
+        while self.peek().is_ascii_digit() {
             self.advance();
         }
 
-        if self.peek() == '.' && self.peak_next().is_digit(10) {
+        if self.peek() == '.' && self.peak_next().is_ascii_digit() {
             self.advance();
 
-            while self.peek().is_digit(10) {
+            while self.peek().is_ascii_digit() {
                 self.advance();
             }
         }
 
-        let value = self.source[self.start..self.current].parse::<f64>().unwrap();
+        let value = self.source[self.start..self.current]
+            .parse::<f64>()
+            .unwrap();
 
         self.make_token(TokenType::NUMBER, value.to_string());
     }
@@ -204,9 +206,7 @@ impl Scanner {
     }
 
     fn make_token(&mut self, token_type: TokenType, literal: String) {
-        self.tokens.push(
-            Token::new(token_type, literal, self.line)
-        );
+        self.tokens.push(Token::new(token_type, literal, self.line));
     }
 
     fn match_char(&mut self, char: char) -> bool {
@@ -242,7 +242,8 @@ mod tests {
 
     #[test]
     fn test_block_comment_with_slashes_in_it() {
-        let mut scanner = Scanner::new("/* This is a block comment with // slashes in it */".to_string());
+        let mut scanner =
+            Scanner::new("/* This is a block comment with // slashes in it */".to_string());
         let tokens = scanner.scan_tokens();
         assert_eq!(Token::new(TokenType::EOF, String::new(), 1), tokens[0]);
     }
