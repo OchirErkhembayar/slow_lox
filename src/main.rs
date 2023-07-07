@@ -5,9 +5,6 @@ mod parser;
 mod scanner;
 mod token;
 
-
-
-
 static mut HAD_ERROR: bool = false;
 
 fn main() {

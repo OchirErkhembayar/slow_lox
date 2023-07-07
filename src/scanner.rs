@@ -131,7 +131,7 @@ impl Scanner {
                         self.advance();
                     }
                 } else {
-                    self.make_token(TokenType::SLASH, String::new());
+                    self.make_token(TokenType::SLASH, String::from("/"));
                 }
             }
             ' ' | '\r' | '\t' => (),

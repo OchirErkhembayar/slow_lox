@@ -159,6 +159,7 @@ impl Parser {
         {
             let operator = self.advance();
             let right = self.unary()?;
+            println!("factor: {:?}, {:?}, {:?}", expr, operator, right);
             expr = Expr::Binary(Binary {
                 left: Box::new(expr),
                 operator,

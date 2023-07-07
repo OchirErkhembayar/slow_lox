@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
@@ -8,24 +8,24 @@ pub enum Expr {
     Unary(Unary),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Binary {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Grouping {
     pub expression: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Literal {
     pub value: Token,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Unary {
     pub operator: Token,
     pub right: Box<Expr>,
