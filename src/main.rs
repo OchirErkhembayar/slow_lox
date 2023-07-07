@@ -5,8 +5,8 @@ mod parser;
 mod scanner;
 mod token;
 
-use crate::expr::{Binary, Expr, Grouping, Literal};
-use crate::token::{Token, TokenType};
+
+
 
 static mut HAD_ERROR: bool = false;
 
