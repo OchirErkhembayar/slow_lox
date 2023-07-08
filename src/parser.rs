@@ -1,5 +1,5 @@
-use crate::expr::{Binary, Expr, Grouping, Literal, Unary};
 use crate::token::{Token, TokenType};
+use crate::expr::{Expr, Binary, Grouping, Literal, Unary, Ternary};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -82,17 +82,50 @@ impl Parser {
 
 impl Parser {
     pub fn parse(&mut self) -> Result<Expr, ParseError> {
-        match self.expression() {
+        let mut expr = match self.expression() {
             Ok(expr) => Ok(expr),
             Err(err) => {
                 crate::error(err.token.line, err.message.as_str());
-                Err(err)
+                return Err(err);
             }
+        };
+
+        // C style comma operator, e.g. (1, 2, 3). The value of the expression is the last value.
+        while self.peek().token_type == TokenType::COMMA
+        {
+            self.advance();
+            expr = match self.expression() {
+                Ok(expr) => Ok(expr),
+                Err(err) => {
+                    crate::error(err.token.line, err.message.as_str());
+                    return Err(err);
+                }
+            };
         }
+
+        expr
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.ternary()
+    }
+
+    fn ternary(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        if self.peek().token_type == TokenType::QUESTION {
+            self.advance();
+            let then_branch = self.expression()?;
+            self.consume(TokenType::COLON, "Expect ':' after then branch of ternary")?;
+            let else_branch = self.expression()?;
+            expr = Expr::Ternary(Ternary {
+                condition: Box::new(expr),
+                then_branch: Box::new(then_branch),
+                else_branch: Box::new(else_branch),
+            });
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -159,7 +192,6 @@ impl Parser {
         {
             let operator = self.advance();
             let right = self.unary()?;
-            println!("factor: {:?}, {:?}, {:?}", expr, operator, right);
             expr = Expr::Binary(Binary {
                 left: Box::new(expr),
                 operator,

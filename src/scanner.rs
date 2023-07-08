@@ -79,6 +79,8 @@ impl Scanner {
             '+' => self.make_token(TokenType::PLUS, String::from("+")),
             ';' => self.make_token(TokenType::SEMICOLON, String::from(";")),
             '*' => self.make_token(TokenType::STAR, String::from("*")),
+            '?' => self.make_token(TokenType::QUESTION, String::from("?")),
+            ':' => self.make_token(TokenType::COLON, String::from(":")),
             '!' => {
                 if self.match_char('=') {
                     self.make_token(TokenType::BANG_EQUAL, String::from("!="));
