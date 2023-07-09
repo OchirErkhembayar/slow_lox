@@ -77,9 +77,9 @@ fn run(input: String) {
 }
 
 fn error(line: usize, message: &str) {
+    fn report(line: usize, location: &str, message: &str) {
+        eprintln!("Error: [line {}] Error {}: {}", line, location, message);
+    }
     report(line, "", message);
 }
 
-fn report(line: usize, location: &str, message: &str) {
-    eprintln!("Error: [line {}] Error {}: {}", line, location, message);
-}
