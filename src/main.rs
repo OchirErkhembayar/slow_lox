@@ -4,8 +4,8 @@ mod expr;
 mod interpreter;
 mod parser;
 mod scanner;
-mod token;
 mod stmt;
+mod token;
 
 static mut HAD_ERROR: bool = false;
 static mut HAD_RUNTIME_ERROR: bool = false;

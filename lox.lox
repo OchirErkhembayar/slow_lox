@@ -1,3 +1,9 @@
 var msg = "Hello";
 print msg;
 print msg + ", World!";
+var null_var;
+print null_var;
+var num = 1 + 4;
+print num > 5 ? "True" : "Not true";
+var num = "I'm a variable";
+print true ? num : "false";
