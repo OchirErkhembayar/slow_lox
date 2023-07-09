@@ -9,6 +9,7 @@ mod scanner;
 mod token;
 
 static mut HAD_ERROR: bool = false;
+static mut HAD_RUNTIME_ERROR: bool = false;
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
@@ -27,6 +28,9 @@ fn run_file(file_path: String) {
 
     if unsafe { HAD_ERROR } {
         std::process::exit(65);
+    }
+    if unsafe { HAD_RUNTIME_ERROR } {
+        std::process::exit(70);
     }
 }
 
@@ -55,8 +59,15 @@ fn run(input: String) {
     let tokens = scanner.scan_tokens();
     let mut parser = crate::parser::Parser::new(tokens);
     if let Ok(expr) = parser.parse() {
-        if let Ok(result) = interpret(expr) {
-            println!("{}", result);
+        match interpret(expr) {
+            Ok(result) => println!("{}", result),
+            Err(e) => {
+                error(e.token.line, &e.message);
+                unsafe {
+                    HAD_ERROR = true;
+                    HAD_RUNTIME_ERROR = true;
+                }
+            }
         }
     }
 }

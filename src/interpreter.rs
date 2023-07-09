@@ -1,5 +1,5 @@
 use crate::expr::Expr;
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 use core::fmt::Display;
 
 pub fn interpret(expr: Expr) -> Result<Primitive, InterpretError> {
@@ -8,61 +8,195 @@ pub fn interpret(expr: Expr) -> Result<Primitive, InterpretError> {
             let left = interpret(*binary.left)?;
             let right = interpret(*binary.right)?;
             match binary.operator.lexeme.as_str() {
-                "-" => Ok(Primitive::Number(to_number(left) - to_number(right))),
-                "*" => Ok(Primitive::Number(to_number(left) * to_number(right))),
-                "/" => Ok(Primitive::Number(to_number(left) / to_number(right))),
-                "+" => match (&left, &right) {
-                    (Primitive::Number(left), Primitive::Number(right)) => {
-                        Ok(Primitive::Number(left + right))
-                    }
-                    (Primitive::String(left), Primitive::String(right)) => {
-                        Ok(Primitive::String(format!("{}{}", left, right)))
-                    }
-                    _ => {
+                "-" => {
+                    if let (
+                        Primitive::Number {
+                            value: left,
+                            token: _,
+                        },
+                        Primitive::Number {
+                            value: right,
+                            token: _,
+                        },
+                    ) = (&left, &right)
+                    {
+                        Ok(Primitive::Number {
+                            value: left - right,
+                            token: binary.operator,
+                        })
+                    } else {
                         Err(InterpretError {
-                            message: format!(
-                                "Operands must be two numbers or two strings: {} + {}",
-                                left, right
-                            ),
+                            message: format!("Operands must be two numbers: {} - {}", left, right),
+                            token: binary.operator,
                         })
                     }
-                },
-                ">" => Ok(Primitive::Boolean(to_number(left) > to_number(right))),
-                ">=" => Ok(Primitive::Boolean(to_number(left) >= to_number(right))),
-                "<" => Ok(Primitive::Boolean(to_number(left) < to_number(right))),
-                "<=" => Ok(Primitive::Boolean(to_number(left) <= to_number(right))),
-                "!=" => Ok(Primitive::Boolean(to_number(left) != to_number(right))),
-                "==" => Ok(Primitive::Boolean(is_equal(left, right))),
-                _ => {
-                    Err(InterpretError {
-                        message: format!("Unknown operator: {}", binary.operator.lexeme),
-                    })
                 }
+                "*" => {
+                    if let (
+                        Primitive::Number {
+                            value: left,
+                            token: _,
+                        },
+                        Primitive::Number {
+                            value: right,
+                            token: _,
+                        },
+                    ) = (&left, &right)
+                    {
+                        Ok(Primitive::Number {
+                            value: left * right,
+                            token: binary.operator,
+                        })
+                    } else {
+                        Err(InterpretError {
+                            message: format!("Operands must be two numbers: {} * {}", left, right),
+                            token: binary.operator,
+                        })
+                    }
+                }
+                "/" => {
+                    if let (
+                        Primitive::Number {
+                            value: left,
+                            token: _,
+                        },
+                        Primitive::Number {
+                            value: right,
+                            token: _,
+                        },
+                    ) = (&left, &right)
+                    {
+                        if right == &0.0 {
+                            Err(InterpretError {
+                                message: "Division by zero".to_string(),
+                                token: binary.operator,
+                            })
+                        } else {
+                            Ok(Primitive::Number {
+                                value: left / right,
+                                token: binary.operator,
+                            })
+                        }
+                    } else {
+                        Err(InterpretError {
+                            message: format!("Operands must be two numbers: {} / {}", left, right),
+                            token: binary.operator,
+                        })
+                    }
+                }
+                "+" => match (&left, &right) {
+                    (
+                        Primitive::Number {
+                            value: left,
+                            token: _,
+                        },
+                        Primitive::Number {
+                            value: right,
+                            token: _,
+                        },
+                    ) => Ok(Primitive::Number {
+                        value: left + right,
+                        token: binary.operator,
+                    }),
+                    (
+                        Primitive::String {
+                            value: left,
+                            token: _,
+                        },
+                        _,
+                    ) => Ok(Primitive::String {
+                        value: format!("{}{}", left, right),
+                        token: binary.operator,
+                    }),
+                    (
+                        _,
+                        Primitive::String {
+                            value: right,
+                            token: _,
+                        },
+                    ) => Ok(Primitive::String {
+                        value: format!("{}{}", left, right),
+                        token: binary.operator,
+                    }),
+                    _ => Err(InterpretError {
+                        message: format!(
+                            "Operands must be two numbers or two strings: {} + {}",
+                            left, right
+                        ),
+                        token: binary.operator,
+                    }),
+                },
+                ">" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? > to_number(right)?),
+                    token: binary.operator,
+                }),
+                ">=" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? >= to_number(right)?),
+                    token: binary.operator,
+                }),
+                "<" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? < to_number(right)?),
+                    token: binary.operator,
+                }),
+                "<=" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? <= to_number(right)?),
+                    token: binary.operator,
+                }),
+                "!=" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? != to_number(right)?),
+                    token: binary.operator,
+                }),
+                "==" => Ok(Primitive::Boolean {
+                    value: (to_number(left)? == to_number(right)?),
+                    token: binary.operator,
+                }),
+                _ => Err(InterpretError {
+                    message: format!("Unknown operator: {}", binary.operator.lexeme),
+                    token: binary.operator,
+                }),
             }
         }
         Expr::Grouping(grouping) => Ok(interpret(*grouping.expression)?),
         Expr::Literal(literal) => match literal.value.token_type {
-            TokenType::FALSE => Ok(Primitive::Boolean(false)),
-            TokenType::TRUE => Ok(Primitive::Boolean(true)),
-            TokenType::NIL => Ok(Primitive::Nil),
-            TokenType::NUMBER => Ok(Primitive::Number(
-                literal.value.lexeme.parse::<f64>().unwrap(),
-            )),
-            TokenType::STRING => Ok(Primitive::String(literal.value.lexeme)),
+            TokenType::FALSE => Ok(Primitive::Boolean {
+                value: false,
+                token: literal.value,
+            }),
+            TokenType::TRUE => Ok(Primitive::Boolean {
+                value: true,
+                token: literal.value,
+            }),
+            TokenType::NIL => Ok(Primitive::Nil {
+                token: literal.value,
+            }),
+            TokenType::NUMBER => Ok(Primitive::Number {
+                value: literal.value.lexeme.parse::<f64>().unwrap(),
+                token: literal.value,
+            }),
+            TokenType::STRING => Ok(Primitive::String {
+                value: literal.value.lexeme.clone(),
+                token: literal.value,
+            }),
             _ => Err(InterpretError {
                 message: format!("Unknown literal: {}", literal.value.lexeme),
+                token: literal.value,
             }),
         },
         Expr::Unary(unary) => {
             let right = interpret(*unary.right)?;
             match unary.operator.lexeme.as_str() {
-                "!" => Ok(Primitive::Boolean(!is_truthy(right))),
-                "-" => Ok(Primitive::Number(-to_number(right))),
-                _ => {
-                    return Err(InterpretError {
-                        message: format!("Unknown operator: {}", unary.operator.lexeme),
-                    });
-                }
+                "!" => Ok(Primitive::Boolean {
+                    value: !is_truthy(right),
+                    token: unary.operator,
+                }),
+                "-" => Ok(Primitive::Number {
+                    value: -to_number(right)?,
+                    token: unary.operator,
+                }),
+                _ => Err(InterpretError {
+                    message: format!("Unknown operator: {}", unary.operator.lexeme),
+                    token: unary.operator,
+                }),
             }
         }
         Expr::Ternary(ternary) => {
@@ -78,33 +212,64 @@ pub fn interpret(expr: Expr) -> Result<Primitive, InterpretError> {
 
 fn is_truthy(primitive: Primitive) -> bool {
     match primitive {
-        Primitive::Nil => false,
-        Primitive::Boolean(boolean) => boolean,
+        Primitive::Nil { token: _ } => false,
+        Primitive::Boolean {
+            value: boolean,
+            token: _,
+        } => boolean,
         _ => true,
     }
 }
 
-fn to_number(primitive: Primitive) -> f64 {
+fn to_number(primitive: Primitive) -> Result<f64, InterpretError> {
     match primitive {
-        Primitive::Number(number) => number,
-        Primitive::Boolean(boolean) => {
-            if boolean {
-                1.0
-            } else {
-                0.0
-            }
-        }
-        Primitive::Nil => 0.0,
-        Primitive::String(string) => string.parse::<f64>().unwrap(),
+        Primitive::Number {
+            value: number,
+            token: _,
+        } => Ok(number),
+        Primitive::String { value: _, token }
+        | Primitive::Nil { token }
+        | Primitive::Boolean { value: _, token } => Err(InterpretError {
+            message: format!("Operand must be a number: {}", token.lexeme),
+            token,
+        }),
     }
 }
 
+#[allow(dead_code)]
 fn is_equal(left: Primitive, right: Primitive) -> bool {
     match (left, right) {
-        (Primitive::Nil, Primitive::Nil) => true,
-        (Primitive::Boolean(left), Primitive::Boolean(right)) => left == right,
-        (Primitive::Number(left), Primitive::Number(right)) => left == right,
-        (Primitive::String(left), Primitive::String(right)) => left == right,
+        (Primitive::Nil { token: _ }, Primitive::Nil { token: _ }) => true,
+        (
+            Primitive::Boolean {
+                value: left,
+                token: _,
+            },
+            Primitive::Boolean {
+                value: right,
+                token: _,
+            },
+        ) => left == right,
+        (
+            Primitive::Number {
+                value: left,
+                token: _,
+            },
+            Primitive::Number {
+                value: right,
+                token: _,
+            },
+        ) => left == right,
+        (
+            Primitive::String {
+                value: left,
+                token: _,
+            },
+            Primitive::String {
+                value: right,
+                token: _,
+            },
+        ) => left == right,
         _ => false,
     }
 }
@@ -112,23 +277,39 @@ fn is_equal(left: Primitive, right: Primitive) -> bool {
 #[derive(Debug)]
 pub struct InterpretError {
     pub message: String,
+    pub token: Token,
+}
+
+impl Display for InterpretError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
 }
 
 #[derive(PartialEq)]
 pub enum Primitive {
-    Number(f64),
-    Boolean(bool),
-    Nil,
-    String(String),
+    Number { value: f64, token: Token },
+    Boolean { value: bool, token: Token },
+    Nil { token: Token },
+    String { value: String, token: Token },
 }
 
 impl Display for Primitive {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Primitive::Number(number) => write!(f, "{}", number),
-            Primitive::Boolean(boolean) => write!(f, "{}", boolean),
-            Primitive::Nil => write!(f, "nil"),
-            Primitive::String(string) => write!(f, "{}", string),
+            Primitive::Number {
+                value: number,
+                token: _,
+            } => write!(f, "{}", number),
+            Primitive::Boolean {
+                value: boolean,
+                token: _,
+            } => write!(f, "{}", boolean),
+            Primitive::Nil { token: _ } => write!(f, "nil"),
+            Primitive::String {
+                value: string,
+                token: _,
+            } => write!(f, "\"{}\"", string),
         }
     }
 }
