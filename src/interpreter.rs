@@ -59,7 +59,7 @@ impl Interpreter {
             }
             Stmt::Print(expr) => {
                 let value = self.interpret_expr(expr)?;
-                println!("{}", value.token.lexeme);
+                println!("{}", value.primitive);
                 Ok(())
             }
             Stmt::Var(token, initializer) => {
@@ -198,11 +198,11 @@ impl Interpreter {
                         token: binary.operator,
                     }),
                     "!=" => Ok(Value {
-                        primitive: Primitive::Boolean(self.to_number(left)? != self.to_number(right)?),
+                        primitive: Primitive::Boolean(!self.is_equal(left, right)),
                         token: binary.operator,
                     }),
                     "==" => Ok(Value {
-                        primitive: Primitive::Boolean(self.to_number(left)? == self.to_number(right)?),
+                        primitive: Primitive::Boolean(self.is_equal(left, right)),
                         token: binary.operator,
                     }),
                     _ => Err(InterpretError {
@@ -296,7 +296,6 @@ impl Interpreter {
         }
     }
 
-    #[allow(dead_code)]
     fn is_equal(&self, left: Value, right: Value) -> bool {
         match (left.primitive, right.primitive) {
             (Primitive::Nil, Primitive::Nil) => true,

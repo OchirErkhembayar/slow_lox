@@ -1,4 +1,3 @@
-print "Hello, World!";
-var something = "Something";
-var something_and_something = something + " " + "and something";
-print something_and_something;
+var msg = "Hello";
+print msg;
+print msg + ", World!";

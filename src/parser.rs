@@ -7,6 +7,11 @@ pub struct Parser {
     current: usize,
 }
 
+pub struct ParseError {
+    pub token: Token,
+    pub message: String,
+}
+
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Parser { tokens, current: 0 }
@@ -94,7 +99,6 @@ impl Parser {
                     continue;
                 }
             }
-            println!("Parsed statement: {:?}", statements);
         }
         Ok(statements)
     }
@@ -167,7 +171,6 @@ impl Parser {
             while !self.is_at_end() && !self.match_token(binary_operators.clone()) {
                 self.advance();
             }
-            println!("Out of error, next token is {:?}", self.peek());
         }
 
         let mut expr = match self.ternary() {
@@ -342,7 +345,3 @@ impl Parser {
     }
 }
 
-pub struct ParseError {
-    pub token: Token,
-    pub message: String,
-}
