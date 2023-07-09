@@ -1,4 +1,5 @@
-use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary};
+use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary, Variable};
+use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
 pub struct Parser {
@@ -81,7 +82,66 @@ impl Parser {
 }
 
 impl Parser {
-    pub fn parse(&mut self) -> Result<Expr, ParseError> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() {
+            let statement = self.declaration();
+            match statement {
+                Ok(statement) => statements.push(statement),
+                Err(error) => {
+                    crate::error(error.token.line, error.message.as_str());
+                    self.synchronize();
+                    continue;
+                }
+            }
+            println!("Parsed statement: {:?}", statements);
+        }
+        Ok(statements)
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(vec![TokenType::VAR]) {
+            return self.var_declaration();
+        }
+
+        self.statement()
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::IDENTIFIER, "Expect variable name.")?;
+
+        let initializer = if self.match_token(vec![TokenType::EQUAL]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after value")?;
+
+        Ok(Stmt::Var(name, initializer))
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(vec![TokenType::PRINT]) {
+            return self.print_statement();
+        }
+
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+        let value = self.expression()?;
+        self.consume(TokenType::SEMICOLON, "Expect ';' after value.")?;
+        Ok(Stmt::Print(value))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+        let value = self.expression()?;
+        self.consume(TokenType::SEMICOLON, "Expect ';' after value.")?;
+        Ok(Stmt::Expr(value))
+    }
+
+    fn expression(&mut self) -> Result<Expr, ParseError> {
         // Check if the expression starts with a binary operator
         let binary_operators = vec![
             TokenType::BANG_EQUAL,
@@ -110,7 +170,7 @@ impl Parser {
             println!("Out of error, next token is {:?}", self.peek());
         }
 
-        let mut expr = match self.expression() {
+        let mut expr = match self.ternary() {
             Ok(expr) => Ok(expr),
             Err(err) => {
                 crate::error(err.token.line, err.message.as_str());
@@ -119,6 +179,7 @@ impl Parser {
         };
 
         // C style comma operator, e.g. (1, 2, 3). The value of the expression is the last value.
+        // Not sure if this is working correctly.
         while self.peek().token_type == TokenType::COMMA {
             self.advance();
             expr = match self.expression() {
@@ -131,10 +192,6 @@ impl Parser {
         }
 
         expr
-    }
-
-    fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.ternary()
     }
 
     fn ternary(&mut self) -> Result<Expr, ParseError> {
@@ -261,6 +318,12 @@ impl Parser {
         if self.match_token(vec![TokenType::NUMBER, TokenType::STRING]) {
             return Ok(Expr::Literal(Literal {
                 value: self.previous(),
+            }));
+        }
+
+        if self.match_token(vec![TokenType::IDENTIFIER]) {
+            return Ok(Expr::Variable(Variable {
+                name: self.previous(),
             }));
         }
 

@@ -1,12 +1,11 @@
 use std::io::Write;
 
-use crate::interpreter::interpret;
-
 mod expr;
 mod interpreter;
 mod parser;
 mod scanner;
 mod token;
+mod stmt;
 
 static mut HAD_ERROR: bool = false;
 static mut HAD_RUNTIME_ERROR: bool = false;
@@ -59,14 +58,18 @@ fn run(input: String) {
     let mut scanner = scanner::Scanner::new(input);
     let tokens = scanner.scan_tokens();
     let mut parser = crate::parser::Parser::new(tokens);
-    if let Ok(expr) = parser.parse() {
-        match interpret(expr) {
-            Ok(result) => println!("{}", result),
-            Err(e) => {
-                error(e.token.line, &e.message);
-                unsafe {
-                    HAD_ERROR = true;
-                    HAD_RUNTIME_ERROR = true;
+    if let Ok(stmts) = parser.parse() {
+        let mut interpreter = interpreter::Interpreter::new();
+        for stmt in stmts.into_iter() {
+            match interpreter.interpret(stmt) {
+                Ok(_) => (),
+                Err(e) => {
+                    println!("{}", e);
+                    error(e.token.line, &e.message);
+                    unsafe {
+                        HAD_ERROR = true;
+                        HAD_RUNTIME_ERROR = true;
+                    }
                 }
             }
         }

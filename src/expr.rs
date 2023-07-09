@@ -7,6 +7,7 @@ pub enum Expr {
     Literal(Literal),
     Unary(Unary),
     Ternary(Ternary),
+    Variable(Variable),
 }
 
 // 1 + 2, 3 * 4, etc.
@@ -44,6 +45,11 @@ pub struct Ternary {
     pub else_branch: Box<Expr>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Variable {
+    pub name: Token,
+}
+
 #[allow(dead_code)]
 pub fn print(expr: Expr) -> String {
     match expr {
@@ -70,5 +76,6 @@ pub fn print(expr: Expr) -> String {
                 print(*ternary.else_branch)
             )
         }
+        Expr::Variable(variable) => variable.name.lexeme,
     }
 }
