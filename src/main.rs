@@ -49,6 +49,7 @@ fn run_prompt() {
         run(input.to_string());
         unsafe {
             HAD_ERROR = false;
+            HAD_RUNTIME_ERROR = false;
         }
     }
     println!("Bye!");

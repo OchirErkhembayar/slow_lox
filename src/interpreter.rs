@@ -103,6 +103,19 @@ pub fn interpret(expr: Expr) -> Result<Primitive, InterpretError> {
                             value: left,
                             token: _,
                         },
+                        Primitive::String {
+                            value: right,
+                            token: _,
+                        },
+                    ) => Ok(Primitive::String {
+                        value: format!("{}{}", left, right),
+                        token: binary.operator,
+                    }),
+                    (
+                        Primitive::String {
+                            value: left,
+                            token: _,
+                        },
                         _,
                     ) => Ok(Primitive::String {
                         value: format!("{}{}", left, right),
