@@ -1,5 +1,5 @@
+use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary};
 use crate::token::{Token, TokenType};
-use crate::expr::{Expr, Binary, Grouping, Literal, Unary, Ternary};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -82,6 +82,34 @@ impl Parser {
 
 impl Parser {
     pub fn parse(&mut self) -> Result<Expr, ParseError> {
+        // Check if the expression starts with a binary operator
+        let binary_operators = vec![
+            TokenType::BANG_EQUAL,
+            TokenType::EQUAL_EQUAL,
+            TokenType::GREATER,
+            TokenType::GREATER_EQUAL,
+            TokenType::LESS,
+            TokenType::LESS_EQUAL,
+            TokenType::MINUS,
+            TokenType::PLUS,
+            TokenType::SLASH,
+            TokenType::STAR,
+            TokenType::QUESTION,
+            TokenType::COLON,
+            TokenType::COMMA,
+        ];
+        if self.match_token(binary_operators.clone()) {
+            let token = self.previous();
+            crate::error(
+                token.line,
+                &format!("Expression cannot start with {}", token.lexeme),
+            );
+            while !self.is_at_end() && !self.match_token(binary_operators.clone()) {
+                self.advance();
+            }
+            println!("Out of error, next token is {:?}", self.peek());
+        }
+
         let mut expr = match self.expression() {
             Ok(expr) => Ok(expr),
             Err(err) => {
@@ -91,8 +119,7 @@ impl Parser {
         };
 
         // C style comma operator, e.g. (1, 2, 3). The value of the expression is the last value.
-        while self.peek().token_type == TokenType::COMMA
-        {
+        while self.peek().token_type == TokenType::COMMA {
             self.advance();
             expr = match self.expression() {
                 Ok(expr) => Ok(expr),

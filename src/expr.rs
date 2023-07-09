@@ -36,6 +36,7 @@ pub struct Unary {
     pub right: Box<Expr>,
 }
 
+// condition ? then_branch : else_branch
 #[derive(Clone, Debug)]
 pub struct Ternary {
     pub condition: Box<Expr>,
@@ -43,6 +44,7 @@ pub struct Ternary {
     pub else_branch: Box<Expr>,
 }
 
+#[allow(dead_code)]
 pub fn print(expr: Expr) -> String {
     match expr {
         Expr::Binary(binary) => {

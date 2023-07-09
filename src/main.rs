@@ -1,6 +1,9 @@
 use std::io::Write;
 
+use crate::interpreter::interpret;
+
 mod expr;
+mod interpreter;
 mod parser;
 mod scanner;
 mod token;
@@ -52,7 +55,9 @@ fn run(input: String) {
     let tokens = scanner.scan_tokens();
     let mut parser = crate::parser::Parser::new(tokens);
     if let Ok(expr) = parser.parse() {
-        println!("{}", crate::expr::print(expr))
+        if let Ok(result) = interpret(expr) {
+            println!("{}", result);
+        }
     }
 }
 
