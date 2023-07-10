@@ -76,6 +76,17 @@ impl Interpreter {
                 };
                 self.environment.insert(token.lexeme, value);
                 Ok(())
+            },
+            Stmt::Assign(token, expr) => {
+                if !self.environment.contains_key(token.lexeme.as_str()) {
+                    return Err(InterpretError {
+                        message: format!("Undefined variable '{}'.", token.lexeme),
+                        token,
+                    });
+                }
+                let value = self.interpret_expr(expr)?;
+                self.environment.insert(token.lexeme, value);
+                Ok(())
             }
         }
     }
@@ -271,6 +282,9 @@ impl Interpreter {
                         token: variable.name,
                     }),
                 }
+            }
+            Expr::Assign(assign) => {
+                Ok(self.interpret_expr(*assign.value)?)
             }
         }
     }

@@ -8,6 +8,7 @@ pub enum Expr {
     Unary(Unary),
     Ternary(Ternary),
     Variable(Variable),
+    Assign(Assignment),
 }
 
 // 1 + 2, 3 * 4, etc.
@@ -50,6 +51,12 @@ pub struct Variable {
     pub name: Token,
 }
 
+#[derive(Clone, Debug)]
+pub struct Assignment {
+    pub name: Token,
+    pub value: Box<Expr>,
+}
+
 #[allow(dead_code)]
 pub fn print(expr: Expr) -> String {
     match expr {
@@ -77,5 +84,8 @@ pub fn print(expr: Expr) -> String {
             )
         }
         Expr::Variable(variable) => variable.name.lexeme,
+        Expr::Assign(assignment) => {
+            format!("(= {} {})", assignment.name.lexeme, print(*assignment.value))
+        }
     }
 }

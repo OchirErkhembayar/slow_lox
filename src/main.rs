@@ -64,7 +64,6 @@ fn run(input: String) {
             match interpreter.interpret(stmt) {
                 Ok(_) => (),
                 Err(e) => {
-                    println!("{}", e);
                     error(e.token.line, &e.message);
                     unsafe {
                         HAD_ERROR = true;

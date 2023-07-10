@@ -1,1 +1,2 @@
-a + 3, 1 + 50
+var variable = 1;
+var variable = 2;

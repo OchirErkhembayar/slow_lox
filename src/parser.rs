@@ -1,4 +1,4 @@
-use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary, Variable};
+use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Assignment};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -142,7 +142,10 @@ impl Parser {
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
         self.consume(TokenType::SEMICOLON, "Expect ';' after value.")?;
-        Ok(Stmt::Expr(value))
+        match value {
+            Expr::Assign(assignment) => Ok(Stmt::Assign(assignment.name.clone(), *assignment.value)),
+            _ => Ok(Stmt::Expr(value)),
+        }
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
@@ -173,7 +176,7 @@ impl Parser {
             }
         }
 
-        let mut expr = match self.ternary() {
+        let mut expr = match self.assignment() {
             Ok(expr) => Ok(expr),
             Err(err) => {
                 crate::error(err.token.line, err.message.as_str());
@@ -195,6 +198,33 @@ impl Parser {
         }
 
         expr
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.ternary()?;
+
+        if self.match_token(vec![TokenType::EQUAL]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+
+            match expr {
+                Expr::Variable(name) => {
+                    return Ok(Expr::Assign(Assignment {
+                        name: name.name,
+                        value: Box::new(value)
+                    }));
+                }
+                _ => {
+                    crate::error(equals.line, "Invalid assignment target.");
+                    return Err(ParseError {
+                        token: equals,
+                        message: "Invalid assignment target.".to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(expr)
     }
 
     fn ternary(&mut self) -> Result<Expr, ParseError> {
