@@ -186,6 +186,7 @@ impl Parser {
 
         // C style comma operator, e.g. (1, 2, 3). The value of the expression is the last value.
         // Not sure if this is working correctly.
+        // Not working correctly. The comma operator should be left associative, but this is right associative.
         while self.peek().token_type == TokenType::COMMA {
             self.advance();
             expr = match self.expression() {

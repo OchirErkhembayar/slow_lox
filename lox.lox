@@ -1,3 +1,7 @@
 var a = 3;
 print a = 5;
-b = 5;
+var a, var b, var c, var d;
+print a;
+print b;
+print c;
+print d;
