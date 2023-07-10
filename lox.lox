@@ -1,4 +1,5 @@
-var hello = "Hello";
-print hello;
-hello = hello + ", World!";
-print hello;
+var x = 10;
+var y = 30;
+var z = x * x + y * y;
+z = 500;
+print z == 1000 ? "yes" : "no";
