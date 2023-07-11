@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::interpreter::Value;
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Environment {
