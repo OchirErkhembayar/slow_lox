@@ -1,5 +1,8 @@
-var x = 10;
-var y = 30;
-var z = x * x + y * y;
-z = 500;
-print z == 1000 ? "yes" : "no";
+var a = 30;
+print a;
+{
+    var a = 50;
+    print a;
+}
+print a;
+

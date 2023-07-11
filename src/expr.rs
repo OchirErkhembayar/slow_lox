@@ -85,7 +85,11 @@ pub fn print(expr: Expr) -> String {
         }
         Expr::Variable(variable) => variable.name.lexeme,
         Expr::Assign(assignment) => {
-            format!("(= {} {})", assignment.name.lexeme, print(*assignment.value))
+            format!(
+                "(= {} {})",
+                assignment.name.lexeme,
+                print(*assignment.value)
+            )
         }
     }
 }

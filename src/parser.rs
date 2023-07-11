@@ -1,4 +1,4 @@
-use crate::expr::{Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Assignment};
+use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -129,8 +129,22 @@ impl Parser {
         if self.match_token(vec![TokenType::PRINT]) {
             return self.print_statement();
         }
+        if self.match_token(vec![TokenType::LEFT_BRACE]) {
+            return Ok(Stmt::Block(self.block()?));
+        }
 
         self.expression_statement()
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+        let mut stmts = Vec::new();
+
+        while !self.check(TokenType::RIGHT_BRACE) && !self.is_at_end() {
+            stmts.push(self.declaration()?);
+        }
+
+        self.consume(TokenType::RIGHT_BRACE, "Expect '}' after block.")?;
+        Ok(stmts)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -143,7 +157,9 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenType::SEMICOLON, "Expect ';' after value.")?;
         match value {
-            Expr::Assign(assignment) => Ok(Stmt::Assign(assignment.name.clone(), *assignment.value)),
+            Expr::Assign(assignment) => {
+                Ok(Stmt::Assign(assignment.name.clone(), *assignment.value))
+            }
             _ => Ok(Stmt::Expr(value)),
         }
     }
@@ -212,7 +228,7 @@ impl Parser {
                 Expr::Variable(name) => {
                     return Ok(Expr::Assign(Assignment {
                         name: name.name,
-                        value: Box::new(value)
+                        value: Box::new(value),
                     }));
                 }
                 _ => {

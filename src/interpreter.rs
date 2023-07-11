@@ -2,58 +2,9 @@ use crate::expr::Expr;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
-use std::collections::HashMap;
+use environment::Environment;
 
-struct Environment {
-    enclosing: Option<Box<Environment>>,
-    values: HashMap<String, Value>,
-}
-
-impl Environment {
-    fn global() -> Self {
-        Self {
-            enclosing: None,
-            values: HashMap::new(),
-        }
-    }
-
-    fn new(enclosing: Box<Environment>) -> Self {
-        Self {
-            enclosing: Some(enclosing),
-            values: HashMap::new(),
-        }
-    }
-
-    fn contains_key(&self, name: &str) -> bool {
-        if self.values.contains_key(name) {
-            true
-        } else {
-            match &self.enclosing {
-                Some(enclosing) => enclosing.contains_key(name),
-                None => false,
-            }
-        }
-    }
-
-    fn get(&self, name: &str) -> Option<Value> {
-        if self.values.contains_key(name) {
-            self.values.get(name).cloned()
-        } else {
-            match &self.enclosing {
-                Some(enclosing) => enclosing.get(name),
-                None => None,
-            }
-        }
-    }
-
-    fn insert(&mut self, name: String, value: Value) {
-        self.values.insert(name, value);
-    }
-
-    fn remove(&mut self, name: &str) {
-        self.values.remove(name);
-    }
-}
+mod environment;
 
 pub struct Interpreter {
     environment: Environment,
@@ -102,6 +53,7 @@ impl Interpreter {
             environment: Environment::global(),
         }
     }
+
     pub fn interpret(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
         match stmt {
             Stmt::Expr(expr) => {
@@ -127,7 +79,7 @@ impl Interpreter {
                 };
                 self.environment.insert(token.lexeme, value);
                 Ok(())
-            },
+            }
             Stmt::Assign(token, expr) => {
                 if !self.environment.contains_key(token.lexeme.as_str()) {
                     return Err(InterpretError {
@@ -137,6 +89,16 @@ impl Interpreter {
                 }
                 let value = self.interpret_expr(expr)?;
                 self.environment.insert(token.lexeme, value);
+                Ok(())
+            }
+            Stmt::Block(stmts) => {
+                let environment = Environment::new(Box::new(self.environment.clone()));
+                self.environment = environment;
+                for stmt in stmts {
+                    self.interpret(stmt)?;
+                }
+                let enclosing = self.environment.enclosing.clone();
+                self.environment = *enclosing.unwrap();
                 Ok(())
             }
         }
@@ -334,9 +296,7 @@ impl Interpreter {
                     }),
                 }
             }
-            Expr::Assign(assign) => {
-                Ok(self.interpret_expr(*assign.value)?)
-            }
+            Expr::Assign(assign) => Ok(self.interpret_expr(*assign.value)?),
         }
     }
 
