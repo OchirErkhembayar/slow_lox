@@ -2,6 +2,8 @@ var condition = false;
 
 if (condition) {
     print "If block";
+    print "if Block!";
 } else {
     print "Else block";
+    print "Woohoo!";
 }
