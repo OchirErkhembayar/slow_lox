@@ -107,6 +107,9 @@ impl Parser {
         if self.match_token(vec![TokenType::VAR]) {
             return self.var_declaration();
         }
+        if self.match_token(vec![TokenType::IF]) {
+            return self.if_statement();
+        }
 
         self.statement()
     }
@@ -126,6 +129,27 @@ impl Parser {
         self.consume(TokenType::SEMICOLON, "Expect ';' after value")?;
 
         Ok(Stmt::Var(name, initializer))
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after if condition.")?;
+        self.consume(TokenType::LEFT_BRACE, "Expect '{' before 'if' body.")?;
+        let then_branch = self.statement()?;
+        self.consume(TokenType::RIGHT_BRACE, "Expect '}' after 'if' body.")?;
+        let mut else_branch = None;
+        if self.match_token(vec![TokenType::ELSE]) {
+            self.consume(TokenType::LEFT_BRACE, "Expect '{' before 'else' body.")?;
+            else_branch = Some(Box::new(self.statement()?));
+            self.consume(TokenType::RIGHT_BRACE, "Expect '}' after 'else' body.")?;
+        }
+
+        Ok(Stmt::If(
+            condition,
+            Box::new(then_branch),
+            else_branch,
+        ))
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {

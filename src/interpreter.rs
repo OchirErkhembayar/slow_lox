@@ -101,6 +101,15 @@ impl Interpreter {
                 self.environment = *enclosing.unwrap();
                 Ok(())
             }
+            Stmt::If(condition, then_branch, else_branch) => {
+                let condition = self.interpret_expr(condition)?;
+                if condition.primitive == Primitive::Boolean(true) {
+                    self.interpret(*then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.interpret(*else_branch)?;
+                }
+                Ok(())
+            }
         }
     }
 
