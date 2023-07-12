@@ -5,3 +5,7 @@ if (condition or true and (false or true)) {
 } else {
     print "Else block";
 }
+
+var string = true or false and true or false ? true ? "Weird nested ternary" : "nope"  : "False part of ternary";
+print string;
+
