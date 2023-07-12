@@ -45,6 +45,15 @@ impl Environment {
     }
 
     pub fn insert(&mut self, name: String, value: Value) {
-        self.values.insert(name, value);
+        if self.values.contains_key(&name) {
+            self.values.insert(name, value);
+        } else {
+            match &mut self.enclosing {
+                Some(enclosing) => enclosing.insert(name, value),
+                None => {
+                    self.values.insert(name, value);
+                },
+            };
+        }
     }
 }

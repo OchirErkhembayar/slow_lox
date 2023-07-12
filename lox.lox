@@ -9,3 +9,9 @@ if (condition or true and (false or true)) {
 var string = true or false and true or false ? true ? "Weird nested ternary" : "nope"  : "False part of ternary";
 print string;
 
+var i = 0;
+
+while (i < 5) {
+    i = i + 1;
+    print "The value of i is: " + i;
+}

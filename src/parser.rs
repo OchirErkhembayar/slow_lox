@@ -110,6 +110,9 @@ impl Parser {
         if self.match_token(vec![TokenType::IF]) {
             return self.if_statement();
         }
+        if self.match_token(vec![TokenType::WHILE]) {
+            return self.while_statement();
+        }
 
         self.statement()
     }
@@ -146,6 +149,15 @@ impl Parser {
             Box::new(then_branch),
             else_branch,
         ))
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after condition.")?;
+        let body = self.statement()?;
+
+        Ok(Stmt::While(condition, Box::new(body)))
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {

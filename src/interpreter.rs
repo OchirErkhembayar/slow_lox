@@ -110,6 +110,13 @@ impl Interpreter {
                 }
                 Ok(())
             }
+            Stmt::While(condition, body) => {
+                while self.interpret_expr(condition.clone())?.primitive == Primitive::Boolean(true)
+                {
+                    self.interpret(*body.clone())?;
+                }
+                Ok(())
+            }
         }
     }
 
