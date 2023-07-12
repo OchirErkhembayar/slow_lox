@@ -274,7 +274,7 @@ impl Interpreter {
                 let right = self.interpret_expr(*unary.right)?;
                 match unary.operator.lexeme.as_str() {
                     "!" => Ok(Value {
-                        primitive: Primitive::Boolean(!self.is_truthy(right)),
+                        primitive: Primitive::Boolean(!self.is_truthy(&right)),
                         token: unary.operator,
                     }),
                     "-" => Ok(Value {
@@ -289,7 +289,7 @@ impl Interpreter {
             }
             Expr::Ternary(ternary) => {
                 let condition = self.interpret_expr(*ternary.condition)?;
-                if self.is_truthy(condition) {
+                if self.is_truthy(&condition) {
                     Ok(self.interpret_expr(*ternary.then_branch)?)
                 } else {
                     Ok(self.interpret_expr(*ternary.else_branch)?)
@@ -306,10 +306,23 @@ impl Interpreter {
                 }
             }
             Expr::Assign(assign) => Ok(self.interpret_expr(*assign.value)?),
+            Expr::Logical(logical) => {
+                let left = self.interpret_expr(*logical.left)?;
+                if logical.operator.token_type == TokenType::OR {
+                    if self.is_truthy(&left) {
+                        return Ok(left);
+                    }
+                } else {
+                    if !self.is_truthy(&left) {
+                        return Ok(left);
+                    }
+                }
+                self.interpret_expr(*logical.right)
+            },
         }
     }
 
-    fn is_truthy(&self, value: Value) -> bool {
+    fn is_truthy(&self, value: &Value) -> bool {
         match value.primitive {
             Primitive::Nil => false,
             Primitive::Boolean(bool) => bool,

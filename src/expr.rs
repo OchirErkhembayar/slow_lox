@@ -6,6 +6,7 @@ pub enum Expr {
     Grouping(Grouping),
     Literal(Literal),
     Unary(Unary),
+    Logical(Logical),
     Ternary(Ternary),
     Variable(Variable),
     Assign(Assignment),
@@ -57,6 +58,13 @@ pub struct Assignment {
     pub value: Box<Expr>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Logical {
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
+}
+
 #[allow(dead_code)]
 pub fn print(expr: Expr) -> String {
     match expr {
@@ -89,6 +97,14 @@ pub fn print(expr: Expr) -> String {
                 "(= {} {})",
                 assignment.name.lexeme,
                 print(*assignment.value)
+            )
+        }
+        Expr::Logical(logical) => {
+            format!(
+                "({} {} {})",
+                logical.operator.lexeme,
+                print(*logical.left),
+                print(*logical.right)
             )
         }
     }

@@ -1,4 +1,4 @@
-use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable};
+use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -135,14 +135,10 @@ impl Parser {
         self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self.consume(TokenType::RIGHT_PAREN, "Expect ')' after if condition.")?;
-        self.consume(TokenType::LEFT_BRACE, "Expect '{' before 'if' body.")?;
         let then_branch = self.statement()?;
-        self.consume(TokenType::RIGHT_BRACE, "Expect '}' after 'if' body.")?;
         let mut else_branch = None;
         if self.match_token(vec![TokenType::ELSE]) {
-            self.consume(TokenType::LEFT_BRACE, "Expect '{' before 'else' body.")?;
             else_branch = Some(Box::new(self.statement()?));
-            self.consume(TokenType::RIGHT_BRACE, "Expect '}' after 'else' body.")?;
         }
 
         Ok(Stmt::If(
@@ -272,7 +268,7 @@ impl Parser {
     }
 
     fn ternary(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.equality()?;
+        let mut expr = self.or()?;
 
         if self.peek().token_type == TokenType::QUESTION {
             self.advance();
@@ -283,6 +279,38 @@ impl Parser {
                 condition: Box::new(expr),
                 then_branch: Box::new(then_branch),
                 else_branch: Box::new(else_branch),
+            });
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.and()?;
+
+        while self.peek().token_type == TokenType::OR {
+            let operator = self.advance();
+            let right = self.and()?;
+            expr = Expr::Logical(Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
+            });
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        while self.peek().token_type == TokenType::AND {
+            let operator = self.advance();
+            let right = self.equality()?;
+            expr = Expr::Logical(Logical {
+                left: Box::new(expr),
+                operator,
+                right: Box::new(right),
             });
         }
 
