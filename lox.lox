@@ -15,3 +15,5 @@ while (i < 5) {
     i = i + 1;
     print "The value of i is: " + i;
 }
+
+if true print "It's true";
