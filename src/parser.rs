@@ -1,4 +1,5 @@
 use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical};
+use crate::interpreter::Primitive;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -107,6 +108,9 @@ impl Parser {
         if self.match_token(vec![TokenType::VAR]) {
             return self.var_declaration();
         }
+        if self.match_token(vec![TokenType::FOR]) {
+            return self.for_statement();
+        }
         if self.match_token(vec![TokenType::IF]) {
             return self.if_statement();
         }
@@ -132,6 +136,55 @@ impl Parser {
         self.consume(TokenType::SEMICOLON, "Expect ';' after value")?;
 
         Ok(Stmt::Var(name, initializer))
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.")?;
+
+        let initializer = if self.match_token(vec![TokenType::SEMICOLON]) {
+            None
+        } else if self.match_token(vec![TokenType::VAR]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if !self.check(TokenType::SEMICOLON) {
+            self.expression()?
+        } else {
+            Expr::Literal(Literal {
+                value: Token { token_type: TokenType::TRUE, lexeme: "true".to_string(), line: 0 }
+            })
+        };
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after loop condition.")?;
+
+        let increment = if !self.check(TokenType::RIGHT_PAREN) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::Block(vec![
+                body,
+                Stmt::Expr(increment),
+            ]);
+        }
+
+        body = Stmt::While(condition, Box::new(body));
+
+        if let Some(initializer) = initializer {
+            body = Stmt::Block(vec![
+                initializer,
+                body,
+            ]);
+        }
+
+        Ok(body)
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParseError> {
