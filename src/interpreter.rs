@@ -22,13 +22,13 @@ impl Display for InterpretError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Value {
     pub primitive: Primitive,
     pub token: Token,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Primitive {
     Number(f64),
     Boolean(bool),
@@ -77,7 +77,7 @@ impl Interpreter {
                         },
                     },
                 };
-                self.environment.insert(token.lexeme, value);
+                self.environment.define(token.lexeme, value);
                 Ok(())
             }
             Stmt::Assign(token, expr) => {
@@ -88,17 +88,22 @@ impl Interpreter {
                     });
                 }
                 let value = self.interpret_expr(expr)?;
-                self.environment.insert(token.lexeme, value);
+                self.environment.assign(token.lexeme, value)?;
                 Ok(())
             }
             Stmt::Block(stmts) => {
                 let environment = Environment::new(Box::new(self.environment.clone()));
                 self.environment = environment;
                 for stmt in stmts {
-                    self.interpret(stmt)?;
+                    match self.interpret(stmt) {
+                        Ok(_) => {}
+                        Err(error) => {
+                            self.environment.clear_child();
+                            return Err(error);
+                        }
+                    }
                 }
-                let enclosing = self.environment.enclosing.clone();
-                self.environment = *enclosing.unwrap();
+                self.environment.clear_child();
                 Ok(())
             }
             Stmt::If(condition, then_branch, else_branch) => {
@@ -117,6 +122,14 @@ impl Interpreter {
                 }
                 Ok(())
             }
+            Stmt::Break => Err(InterpretError {
+                message: "Break outside of loop".to_string(),
+                token: Token {
+                    token_type: TokenType::BREAK,
+                    lexeme: "break".to_string(),
+                    line: 0,
+                },
+            }),
         }
     }
 

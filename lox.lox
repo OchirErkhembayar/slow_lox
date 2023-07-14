@@ -1,20 +1,41 @@
-var condition = false;
-
-if (condition or true and (false or true)) {
-    print "If block";
-} else {
-    print "Else block";
+// for (var i = 0; i < 5; i = i + 1) {
+// }
+var i = 0;
+var j = 15;
+{
+    i = i + 1;
+    {
+        i = i + 1;
+    }
+    var j = 10;
+    j = j + 5;
 }
-
-var string = true or false and true or false ? true ? "Weird nested ternary" : "nope"  : "False part of ternary";
-print string;
+print j;
 
 var i = 0;
 
 while (i < 5) {
+    print i;
     i = i + 1;
-    print "The value of i is: " + i;
 }
 
-if (true) print "It's true";
+print "First for loop";
+for (var i = 0; i < 3; i = i + 1) {
+    print i;
+}
 
+print "Second for loop";
+for (var i = 0; i < 3;) {
+    i = i + 1;
+    print i;
+}
+
+print "Fibonacci thing";
+var a = 0;
+var temp = nil;
+
+for (var b = 1; a < 10000; b = temp + b) {
+    print a;
+    temp = a;
+    a = b;
+}

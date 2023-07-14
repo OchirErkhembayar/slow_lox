@@ -1,5 +1,4 @@
-use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical};
-use crate::interpreter::Primitive;
+use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical, print};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -149,12 +148,13 @@ impl Parser {
             Some(self.expression_statement()?)
         };
 
-        let condition = if !self.check(TokenType::SEMICOLON) {
-            self.expression()?
+        let mut condition = if !self.check(TokenType::SEMICOLON) {
+            Some(self.expression()?)
         } else {
-            Expr::Literal(Literal {
-                value: Token { token_type: TokenType::TRUE, lexeme: "true".to_string(), line: 0 }
-            })
+            // Expr::Literal(Literal {
+            //    value: Token { token_type: TokenType::TRUE, lexeme: "true".to_string(), line: 0 }
+            // })
+            None
         };
 
         self.consume(TokenType::SEMICOLON, "Expect ';' after loop condition.")?;
@@ -171,11 +171,24 @@ impl Parser {
         if let Some(increment) = increment {
             body = Stmt::Block(vec![
                 body,
-                Stmt::Expr(increment),
+                match increment {
+                    Expr::Assign(assignment) => Stmt::Assign(assignment.name.clone(), Expr::Assign(assignment)),
+                    _ => Stmt::Expr(increment),
+                },
             ]);
         }
 
-        body = Stmt::While(condition, Box::new(body));
+        if condition.is_none() {
+            condition = Some(Expr::Literal(Literal {
+                value: Token {
+                    token_type: TokenType::TRUE,
+                    lexeme: "true".to_string(),
+                    line: 0,
+                },
+            }));
+        }
+
+        body = Stmt::While(condition.unwrap(), Box::new(body));
 
         if let Some(initializer) = initializer {
             body = Stmt::Block(vec![
@@ -219,6 +232,9 @@ impl Parser {
         }
         if self.match_token(vec![TokenType::LEFT_BRACE]) {
             return Ok(Stmt::Block(self.block()?));
+        }
+        if self.match_token(vec![TokenType::BREAK]) {
+            return Ok(Stmt::Break);
         }
 
         self.expression_statement()
@@ -511,3 +527,4 @@ impl Parser {
         })
     }
 }
+

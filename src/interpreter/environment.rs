@@ -1,7 +1,9 @@
 use crate::interpreter::Value;
 use std::collections::HashMap;
 
-#[derive(Clone)]
+use super::InterpretError;
+
+#[derive(Clone, Debug)]
 pub struct Environment {
     pub enclosing: Option<Box<Environment>>,
     pub values: HashMap<String, Value>,
@@ -20,6 +22,14 @@ impl Environment {
             enclosing: Some(enclosing),
             values: HashMap::new(),
         }
+    }
+
+    pub fn clear_child(&mut self) {
+        self.values = self.enclosing.as_ref().unwrap().values.clone();
+        self.enclosing =  match self.enclosing {
+            Some(ref mut enclosing) => enclosing.enclosing.take(),
+            None => None,
+        };
     }
 
     pub fn contains_key(&self, name: &str) -> bool {
@@ -44,16 +54,23 @@ impl Environment {
         }
     }
 
-    pub fn insert(&mut self, name: String, value: Value) {
+    pub fn define(&mut self, name: String, value: Value) {
+        self.values.insert(name, value);
+    }
+
+    pub fn assign(&mut self, name: String, value: Value) -> Result<(), InterpretError> {
         if self.values.contains_key(&name) {
             self.values.insert(name, value);
-        } else {
-            match &mut self.enclosing {
-                Some(enclosing) => enclosing.insert(name, value),
-                None => {
-                    self.values.insert(name, value);
-                },
-            };
+            return Ok(());
         }
+
+        if let Some(ref mut enclosing) = self.enclosing {
+            return enclosing.assign(name, value);
+        }
+
+        Err(InterpretError {
+            token: value.token,
+            message: format!("Undefined variable '{}'.", name),
+        })
     }
 }
