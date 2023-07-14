@@ -2,12 +2,14 @@ use crate::expr::Expr;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
+use std::fmt::Debug;
 use environment::Environment;
 
 mod environment;
 
 pub struct Interpreter {
     environment: Environment,
+    globals: Environment,
 }
 
 #[derive(Debug)]
@@ -34,6 +36,31 @@ pub enum Primitive {
     Boolean(bool),
     Nil,
     String(String),
+    Callable(Callable),
+}
+
+impl PartialEq for Callable {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+impl Debug for Callable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<fn>")
+    }
+}
+
+#[derive(Clone)]
+struct Callable {
+    arity: usize,
+    call: fn(&mut Interpreter, Vec<Value>) -> Result<Value, InterpretError>,
+}
+
+impl Callable {
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
+        (self.call)(interpreter, args)
+    }
 }
 
 impl Display for Primitive {
@@ -43,14 +70,17 @@ impl Display for Primitive {
             Primitive::Boolean(boolean) => write!(f, "{}", boolean),
             Primitive::Nil => write!(f, "nil"),
             Primitive::String(string) => write!(f, "\"{}\"", string),
+            Primitive::Callable(_) => write!(f, "<fn>"),
         }
     }
 }
 
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Environment::global();
         Self {
-            environment: Environment::global(),
+            environment: Environment::new(Box::new(globals.clone())),
+            globals,
         }
     }
 
@@ -135,6 +165,32 @@ impl Interpreter {
 
     fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
         match expr {
+            Expr::Call(call) => {
+                let callee = self.interpret_expr(*call.callee)?;
+                let mut arguments = Vec::new();
+                for argument in call.arguments {
+                    arguments.push(self.interpret_expr(argument)?);
+                }
+                match callee.primitive {
+                    Primitive::Callable(callable) => {
+                        if arguments.len() != callable.arity {
+                            return Err(InterpretError {
+                                message: format!(
+                                    "Expected {} arguments but got {}.",
+                                    callable.arity,
+                                    arguments.len()
+                                ),
+                                token: call.paren,
+                            });
+                        }
+                        callable.call(self, arguments)
+                    }
+                    _ => Err(InterpretError {
+                        message: "Can only call functions and classes.".to_string(),
+                        token: call.paren,
+                    }),
+                }
+            }
             Expr::Binary(binary) => {
                 let left = self.interpret_expr(*binary.left)?;
                 let right = self.interpret_expr(*binary.right)?;

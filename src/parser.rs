@@ -1,4 +1,4 @@
-use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical, print};
+use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical, Call};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -481,7 +481,48 @@ impl Parser {
                 right: Box::new(right),
             }));
         }
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.match_token(vec![TokenType::LEFT_PAREN]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
+        let mut arguments = Vec::new();
+        if !self.check(TokenType::RIGHT_PAREN) {
+            loop {
+                if arguments.len() >= 255 {
+                    crate::error(self.peek().line, "Can't have more than 255 arguments.");
+                    return Err(ParseError {
+                        token: self.peek(),
+                        message: "Can't have more than 255 arguments.".to_string(),
+                    });
+                }
+                arguments.push(self.expression()?);
+                if !self.match_token(vec![TokenType::COMMA]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.")?;
+
+        Ok(Expr::Call(Call {
+            callee: Box::new(callee),
+            paren,
+            arguments,
+        }))
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {

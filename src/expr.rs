@@ -10,6 +10,7 @@ pub enum Expr {
     Ternary(Ternary),
     Variable(Variable),
     Assign(Assignment),
+    Call(Call),
 }
 
 // 1 + 2, 3 * 4, etc.
@@ -65,6 +66,13 @@ pub struct Logical {
     pub right: Box<Expr>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Call {
+    pub callee: Box<Expr>,
+    pub paren: Token,
+    pub arguments: Vec<Expr>,
+}
+
 #[allow(dead_code)]
 pub fn print(expr: Expr) -> String {
     match expr {
@@ -105,6 +113,19 @@ pub fn print(expr: Expr) -> String {
                 logical.operator.lexeme,
                 print(*logical.left),
                 print(*logical.right)
+            )
+        }
+        Expr::Call(call) => {
+            let mut args = String::new();
+            for arg in call.arguments {
+                args.push_str(&print(arg));
+                args.push_str(", ");
+            }
+            format!(
+                "(call {} {} {})",
+                print(*call.callee),
+                call.paren.lexeme,
+                args
             )
         }
     }
