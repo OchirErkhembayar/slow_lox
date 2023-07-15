@@ -1,4 +1,4 @@
-use crate::expr::Expr;
+use crate::expr::{Expr, Value, Primitive, Callable};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
@@ -9,7 +9,6 @@ mod environment;
 
 pub struct Interpreter {
     environment: Environment,
-    globals: Environment,
 }
 
 #[derive(Debug)]
@@ -24,63 +23,36 @@ impl Display for InterpretError {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Value {
-    pub primitive: Primitive,
-    pub token: Token,
-}
-
-#[derive(PartialEq, Clone, Debug)]
-pub enum Primitive {
-    Number(f64),
-    Boolean(bool),
-    Nil,
-    String(String),
-    Callable(Callable),
-}
-
-impl PartialEq for Callable {
-    fn eq(&self, _other: &Self) -> bool {
-        false
-    }
-}
-
-impl Debug for Callable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<fn>")
-    }
-}
-
-#[derive(Clone)]
-struct Callable {
-    arity: usize,
-    call: fn(&mut Interpreter, Vec<Value>) -> Result<Value, InterpretError>,
-}
-
-impl Callable {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
-        (self.call)(interpreter, args)
-    }
-}
-
-impl Display for Primitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Primitive::Number(number) => write!(f, "{}", number),
-            Primitive::Boolean(boolean) => write!(f, "{}", boolean),
-            Primitive::Nil => write!(f, "nil"),
-            Primitive::String(string) => write!(f, "\"{}\"", string),
-            Primitive::Callable(_) => write!(f, "<fn>"),
-        }
-    }
-}
 
 impl Interpreter {
     pub fn new() -> Self {
-        let globals = Environment::global();
+        let mut globals = Environment::global();
+        let value = Value {
+            primitive: Primitive::Callable(Callable {
+                arity: 0,
+                call: |_, _| {
+                    let now = std::time::SystemTime::now();
+                    let timestamp = now
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .expect("Time went backwards");
+                    Ok(Value {
+                        primitive: Primitive::Number(timestamp.as_secs_f64()),
+                        token: Token {
+                            token_type: TokenType::NUMBER,
+                            lexeme: "0".to_string(),
+                            line: 0,
+                        },
+                    })},
+            }),
+            token: Token {
+                token_type: TokenType::IDENTIFIER,
+                lexeme: "clock".to_string(),
+                line: 0,
+            },
+        };
+        globals.define("clock".to_string(), value);
         Self {
             environment: Environment::new(Box::new(globals.clone())),
-            globals,
         }
     }
 
@@ -409,7 +381,7 @@ impl Interpreter {
     fn to_number(&self, value: Value) -> Result<f64, InterpretError> {
         match value.primitive {
             Primitive::Number(number) => Ok(number),
-            Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError {
+            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError {
                 message: format!("Operand must be a number: {}", value.token.lexeme),
                 token: value.token,
             }),

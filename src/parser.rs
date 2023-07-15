@@ -126,10 +126,7 @@ impl Parser {
         let initializer = if self.match_token(vec![TokenType::EQUAL]) {
             Some(self.expression()?)
         } else {
-            return Err(ParseError {
-                token: self.previous(),
-                message: "Cannot declare variable without initializer.".to_string(),
-            });
+            None
         };
 
         self.consume(TokenType::SEMICOLON, "Expect ';' after value")?;

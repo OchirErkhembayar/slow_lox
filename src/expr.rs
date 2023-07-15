@@ -1,4 +1,6 @@
-use crate::token::Token;
+use std::fmt::{Debug, Display};
+
+use crate::{token::Token, interpreter::{InterpretError, Interpreter}};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -71,6 +73,58 @@ pub struct Call {
     pub callee: Box<Expr>,
     pub paren: Token,
     pub arguments: Vec<Expr>,
+}
+
+
+#[derive(Clone, Debug)]
+pub struct Value {
+    pub primitive: Primitive,
+    pub token: Token,
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum Primitive {
+    Number(f64),
+    Boolean(bool),
+    Nil,
+    String(String),
+    Callable(Callable),
+}
+
+impl PartialEq for Callable {
+    fn eq(&self, _other: &Self) -> bool {
+        false
+    }
+}
+
+impl Debug for Callable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<fn>")
+    }
+}
+
+#[derive(Clone)]
+pub struct Callable {
+    pub arity: usize,
+    pub call: fn(&mut Interpreter, Vec<Value>) -> Result<Value, InterpretError>,
+}
+
+impl Callable {
+    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
+        (self.call)(interpreter, args)
+    }
+}
+
+impl Display for Primitive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Primitive::Number(number) => write!(f, "{}", number),
+            Primitive::Boolean(boolean) => write!(f, "{}", boolean),
+            Primitive::Nil => write!(f, "nil"),
+            Primitive::String(string) => write!(f, "\"{}\"", string),
+            Primitive::Callable(_) => write!(f, "<fn>"),
+        }
+    }
 }
 
 #[allow(dead_code)]
