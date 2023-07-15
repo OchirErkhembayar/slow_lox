@@ -68,9 +68,9 @@ impl Environment {
             return enclosing.assign(name, value);
         }
 
-        Err(InterpretError {
-            token: value.token,
-            message: format!("Undefined variable '{}'.", name),
-        })
+        Err(InterpretError::new(
+            String::from("Undefined variable '"),
+            value.token,
+        ))
     }
 }

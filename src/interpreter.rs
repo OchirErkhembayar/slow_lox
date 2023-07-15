@@ -5,7 +5,7 @@ use core::fmt::Display;
 use std::fmt::Debug;
 use environment::Environment;
 
-mod environment;
+pub mod environment;
 
 pub struct Interpreter {
     pub environment: Environment,
@@ -15,6 +15,25 @@ pub struct Interpreter {
 pub struct InterpretError {
     pub message: String,
     pub token: Token,
+    pub value: Option<Value>,
+}
+
+impl InterpretError {
+    fn new(message: String, token: Token) -> Self {
+        Self {
+            message,
+            token,
+            value: None,
+        }
+    }
+
+    fn with_value(message: String, token: Token, value: Value) -> Self {
+        Self {
+            message,
+            token,
+            value: Some(value),
+        }
+    }
 }
 
 impl Display for InterpretError {
@@ -22,7 +41,6 @@ impl Display for InterpretError {
         write!(f, "{}", self.message)
     }
 }
-
 
 impl Interpreter {
     pub fn new() -> Self {
@@ -32,16 +50,33 @@ impl Interpreter {
         }
     }
 
+    pub fn new_environment(&mut self) {
+        self.environment = Environment::new(Box::new(self.environment.clone()));
+    }
+}
+
+impl Interpreter {
+
     pub fn interpret(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
         match stmt {
-            Stmt::Return(_, _) => Err(InterpretError {
-                message: "Return outside of function".to_string(),
-                token: Token {
-                    token_type: TokenType::RETURN,
-                    lexeme: "return".to_string(),
-                    line: 0,
-                },
-            }),
+            Stmt::Return(token, expr) => {
+                if let Some(expr) = expr {
+                    let value = self.interpret_expr(expr)?;
+                    return Err(InterpretError::with_value(
+                        "Successful return".to_string(),
+                        token,
+                        value,
+                    ));
+                }
+                Err(InterpretError::with_value("Successful return".to_string(), token.clone(), Value {
+                    primitive: Primitive::Nil,
+                    token: Token {
+                        token_type: TokenType::NIL,
+                        lexeme: "nil".to_string(),
+                        line: token.line,
+                    },
+                }))
+            },
             Stmt::Expr(expr) => {
                 self.interpret_expr(expr)?;
                 Ok(())
@@ -68,10 +103,10 @@ impl Interpreter {
             }
             Stmt::Assign(token, expr) => {
                 if !self.environment.contains_key(token.lexeme.as_str()) {
-                    return Err(InterpretError {
-                        message: format!("Undefined variable '{}'.", token.lexeme),
+                    return Err(InterpretError::new(
+                        format!("Undefined variable '{}'.", token.lexeme),
                         token,
-                    });
+                    ));
                 }
                 let value = self.interpret_expr(expr)?;
                 self.environment.assign(token.lexeme, value)?;
@@ -104,21 +139,22 @@ impl Interpreter {
                 self.environment.define(token.lexeme, value);
                 Ok(())
             }
-            Stmt::Break => Err(InterpretError {
-                message: "Break outside of loop".to_string(),
-                token: Token {
-                    token_type: TokenType::BREAK,
-                    lexeme: "break".to_string(),
-                    line: 0,
-                },
-            }),
+            Stmt::Break => todo!(),
         }
     }
 
-    pub fn interpret_block(&mut self, block: Vec<Stmt>) -> Result<(), InterpretError> {
-        for stmt in block {
-            self.interpret(stmt)?;
+    pub fn interpret_block(&mut self, stmts: Vec<Stmt>) -> Result<(), InterpretError> {
+        self.environment = Environment::new(Box::new(self.environment.clone()));
+        for stmt in stmts {
+            match self.interpret(stmt) {
+                Ok(_) => {}
+                Err(err) => {
+                    self.environment.clear_child();
+                    return Err(err);
+                }
+            }
         }
+        self.environment.clear_child();
         Ok(())
     }
 
@@ -133,21 +169,21 @@ impl Interpreter {
                 match callee.primitive {
                     Primitive::Callable(callable) => {
                         if arguments.len() != callable.arity {
-                            return Err(InterpretError {
-                                message: format!(
+                            return Err(InterpretError::new(
+                                format!(
                                     "Expected {} arguments but got {}.",
                                     callable.arity,
                                     arguments.len()
                                 ),
-                                token: call.paren,
-                            });
+                                call.paren,
+                            ));
                         }
-                        callable.call(arguments)
+                        callable.call(self, arguments)
                     }
-                    _ => Err(InterpretError {
-                        message: "Can only call functions and classes.".to_string(),
-                        token: call.paren,
-                    }),
+                    _ => Err(InterpretError::new(
+                        "Can only call functions and classes.".to_string(),
+                        call.paren,
+                    )),
                 }
             }
             Expr::Binary(binary) => {
@@ -163,13 +199,13 @@ impl Interpreter {
                                 token: binary.operator,
                             })
                         } else {
-                            Err(InterpretError {
-                                message: format!(
+                            Err(InterpretError::new(
+                                format!(
                                     "Operands must be two numbers: {} - {}",
                                     left.token.lexeme, right.token.lexeme
                                 ),
-                                token: binary.operator,
-                            })
+                                binary.operator,
+                            ))
                         }
                     }
                     "*" => {
@@ -181,13 +217,13 @@ impl Interpreter {
                                 token: binary.operator,
                             })
                         } else {
-                            Err(InterpretError {
-                                message: format!(
+                            Err(InterpretError::new(
+                                format!(
                                     "Operands must be two numbers: {} * {}",
                                     left.token.lexeme, right.token.lexeme
                                 ),
-                                token: binary.operator,
-                            })
+                                binary.operator,
+                            ))
                         }
                     }
                     "/" => {
@@ -195,10 +231,10 @@ impl Interpreter {
                             (&left.primitive, &right.primitive)
                         {
                             if right == &0.0 {
-                                Err(InterpretError {
-                                    message: "Division by zero".to_string(),
-                                    token: binary.operator,
-                                })
+                                Err(InterpretError::new(
+                                    "Division by zero.".to_string(),
+                                    binary.operator,
+                                ))
                             } else {
                                 Ok(Value {
                                     primitive: Primitive::Number(left / right),
@@ -206,13 +242,13 @@ impl Interpreter {
                                 })
                             }
                         } else {
-                            Err(InterpretError {
-                                message: format!(
+                            Err(InterpretError::new(
+                                format!(
                                     "Operands must be two numbers: {} / {}",
                                     left.token.lexeme, right.token.lexeme
                                 ),
-                                token: binary.operator,
-                            })
+                                binary.operator,
+                            ))
                         }
                     }
                     "+" => match (&left.primitive, &right.primitive) {
@@ -232,13 +268,13 @@ impl Interpreter {
                             primitive: Primitive::String(format!("{}{}", left, right)),
                             token: binary.operator,
                         }),
-                        _ => Err(InterpretError {
-                            message: format!(
+                        _ => Err(InterpretError::new(
+                            format!(
                                 "Operands must be two numbers or two strings: {} + {}",
                                 left.token.lexeme, right.token.lexeme
                             ),
-                            token: binary.operator,
-                        }),
+                            binary.operator,
+                        )),
                     },
                     ">" => Ok(Value {
                         primitive: Primitive::Boolean(
@@ -272,10 +308,13 @@ impl Interpreter {
                         primitive: Primitive::Boolean(self.is_equal(left, right)),
                         token: binary.operator,
                     }),
-                    _ => Err(InterpretError {
-                        message: format!("Unknown operator: {}", binary.operator.lexeme),
-                        token: binary.operator,
-                    }),
+                    _ => Err(InterpretError::new(
+                            format!(
+                                "Operands must be two numbers or two strings: {} + {}",
+                                left.token.lexeme, right.token.lexeme
+                            ),
+                            binary.operator,
+                    )),
                 }
             }
             Expr::Grouping(grouping) => Ok(self.interpret_expr(*grouping.expression)?),
@@ -300,10 +339,10 @@ impl Interpreter {
                     primitive: Primitive::String(literal.value.lexeme.clone()),
                     token: literal.value,
                 }),
-                _ => Err(InterpretError {
-                    message: format!("Unknown literal: {}", literal.value.lexeme),
-                    token: literal.value,
-                }),
+                _ => Err(InterpretError::new(
+                        format!("Unknown literal: {}", literal.value.lexeme),
+                        literal.value,
+                ))
             },
             Expr::Unary(unary) => {
                 let right = self.interpret_expr(*unary.right)?;
@@ -316,10 +355,10 @@ impl Interpreter {
                         primitive: Primitive::Number(-self.to_number(right)?),
                         token: unary.operator,
                     }),
-                    _ => Err(InterpretError {
-                        message: format!("Unknown operator: {}", unary.operator.lexeme),
-                        token: unary.operator,
-                    }),
+                    _ => Err(InterpretError::new(
+                        format!("Unknown unary operator: {}", unary.operator.lexeme),
+                        unary.operator,
+                    ))
                 }
             }
             Expr::Ternary(ternary) => {
@@ -334,10 +373,10 @@ impl Interpreter {
                 let value = self.environment.get(&variable.name.lexeme);
                 match value {
                     Some(value) => Ok(value.clone()),
-                    None => Err(InterpretError {
-                        message: format!("Undefined variable: {}", variable.name.lexeme),
-                        token: variable.name,
-                    }),
+                    None => Err(InterpretError::new(
+                        format!("Undefined variable: {}", variable.name.lexeme),
+                        variable.name,
+                    ))
                 }
             }
             Expr::Assign(assign) => Ok(self.interpret_expr(*assign.value)?),
@@ -368,10 +407,10 @@ impl Interpreter {
     fn to_number(&self, value: Value) -> Result<f64, InterpretError> {
         match value.primitive {
             Primitive::Number(number) => Ok(number),
-            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError {
-                message: format!("Operand must be a number: {}", value.token.lexeme),
-                token: value.token,
-            }),
+            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError::new(
+                format!("Expected number, got {}", value.primitive),
+                value.token,
+            ))
         }
     }
 

@@ -1,21 +1,10 @@
-fun say_hi(name) {
-    print "Hi, " + name;
+fun fib(n) {
+    if (n <= 1) return n;
+
+    return fib(n - 2) + fib(n - 1);
 }
 
-say_hi("Zhiyang");
-
-fun add(one, two) {
-    print one + two;
+for (var i = 0; i < 20; i = i + 1) {
+    print fib(i);
 }
 
-add(3, 10);
-
-add(1, 5);
-
-fun multiply(one, three) {
-    print one * three;
-}
-
-multiply(5, 5);
-
-multiply(1 + 3, 5 * 5);

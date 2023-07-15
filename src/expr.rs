@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter}, stmt::Stmt};
+use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -121,20 +121,26 @@ impl Callable {
         }
     }
 
-    pub fn call(&self, args: Vec<Value>) -> Result<Value, InterpretError> {
-        let mut interpreter = Interpreter::new();
+    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
+        interpreter.environment = Environment::new(Box::new(interpreter.environment.clone()));
         for (i, arg) in args.iter().enumerate() {
-            interpreter
-                .environment
-                .define(self.params[i].lexeme.clone(), arg.clone());
+            interpreter.environment.define(self.params[i].lexeme.clone(), arg.clone());
         }
-        match interpreter.interpret_block(self.body.clone()) {
+        let value = match interpreter.interpret_block(self.body.clone()) {
             Ok(_) => Ok(Value {
                 primitive: Primitive::Nil,
                 token: Token::new(TokenType::NIL, String::from("nil"), 0),
             }),
-            Err(e) => Err(e),
-        }
+            Err(e) => {
+                if let Some(value) = e.value {
+                    Ok(value)
+                } else {
+                    Err(e)
+                }
+            },
+        };
+        interpreter.environment.clear_child();
+        value
     }
 }
 
@@ -145,7 +151,7 @@ impl Display for Primitive {
             Primitive::Boolean(boolean) => write!(f, "{}", boolean),
             Primitive::Nil => write!(f, "nil"),
             Primitive::String(string) => write!(f, "\"{}\"", string),
-            Primitive::Callable(_) => write!(f, "<fn>"),
+            Primitive::Callable(callable) => write!(f, "<fn> {}({})", callable.name.lexeme, callable.params.iter().map(|param| param.lexeme.clone()).collect::<Vec<String>>().join(", "))
         }
     }
 }

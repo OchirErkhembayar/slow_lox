@@ -528,7 +528,6 @@ impl Parser {
 
         loop {
             if self.match_token(vec![TokenType::LEFT_PAREN]) {
-                println!("Call: {:?}", expr);
                 expr = self.finish_call(expr)?;
             } else {
                 break;
@@ -551,7 +550,6 @@ impl Parser {
                 }
                 arguments.push(self.expression()?);
                 if !self.match_token(vec![TokenType::COMMA]) {
-                    println!("arguments: {:?}", arguments);
                     break;
                 }
             }
