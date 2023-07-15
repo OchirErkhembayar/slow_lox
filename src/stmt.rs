@@ -11,4 +11,5 @@ pub enum Stmt {
     While(Expr, Box<Stmt>),
     Break,
     Function(Token, Vec<Token>, Vec<Stmt>),
+    Return(Token, Option<Expr>),
 }

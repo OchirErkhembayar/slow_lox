@@ -1,18 +1,21 @@
-{
-    var start;
-    var end;
-    {
-        start = clock();
-    }
-    end = clock();
-    print end - start;
+fun say_hi(name) {
+    print "Hi, " + name;
 }
 
-var i = 0;
+say_hi("Zhiyang");
 
-for (; i < 5; i = i + 1) {
-    print i;
-    if (i == 3) {
-        print i + " is three";
-    }
+fun add(one, two) {
+    print one + two;
 }
+
+add(3, 10);
+
+add(1, 5);
+
+fun multiply(one, three) {
+    print one * three;
+}
+
+multiply(5, 5);
+
+multiply(1 + 3, 5 * 5);

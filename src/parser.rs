@@ -254,6 +254,9 @@ impl Parser {
         if self.match_token(vec![TokenType::PRINT]) {
             return self.print_statement();
         }
+        if self.match_token(vec![TokenType::RETURN]) {
+            return self.return_statement();
+        }
         if self.match_token(vec![TokenType::LEFT_BRACE]) {
             return Ok(Stmt::Block(self.block()?));
         }
@@ -279,6 +282,17 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenType::SEMICOLON, "Expect ';' after value.")?;
         Ok(Stmt::Print(value))
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+        let keyword = self.previous();
+        let mut value = None;
+        if !self.check(TokenType::SEMICOLON) {
+            value = Some(self.expression()?);
+        }
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after return value.")?;
+        Ok(Stmt::Return(keyword, value))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -320,29 +334,30 @@ impl Parser {
             }
         }
 
-        let mut expr = match self.assignment() {
+        match self.assignment() {
             Ok(expr) => Ok(expr),
             Err(err) => {
                 crate::error(err.token.line, err.message.as_str());
                 return Err(err);
             }
-        };
+        }
 
         // C style comma operator, e.g. (1, 2, 3). The value of the expression is the last value.
         // Not sure if this is working correctly.
         // Not working correctly. The comma operator should be left associative, but this is right associative.
-        while self.peek().token_type == TokenType::COMMA {
-            self.advance();
-            expr = match self.expression() {
-                Ok(expr) => Ok(expr),
-                Err(err) => {
-                    crate::error(err.token.line, err.message.as_str());
-                    return Err(err);
-                }
-            };
-        }
+        // Now it's straight up causing bugs so I'm disabling it.
+        // while self.peek().token_type == TokenType::COMMA {
+        //    self.advance();
+        //    expr = match self.expression() {
+        //        Ok(expr) => Ok(expr),
+        //        Err(err) => {
+        //            crate::error(err.token.line, err.message.as_str());
+        //            return Err(err);
+        //        }
+        //    };
+        // }
 
-        expr
+        // expr
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
@@ -513,6 +528,7 @@ impl Parser {
 
         loop {
             if self.match_token(vec![TokenType::LEFT_PAREN]) {
+                println!("Call: {:?}", expr);
                 expr = self.finish_call(expr)?;
             } else {
                 break;
@@ -535,6 +551,7 @@ impl Parser {
                 }
                 arguments.push(self.expression()?);
                 if !self.match_token(vec![TokenType::COMMA]) {
+                    println!("arguments: {:?}", arguments);
                     break;
                 }
             }

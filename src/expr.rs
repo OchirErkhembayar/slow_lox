@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{token::Token, interpreter::{InterpretError, Interpreter}};
+use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter}, stmt::Stmt};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -106,12 +106,35 @@ impl Debug for Callable {
 #[derive(Clone)]
 pub struct Callable {
     pub arity: usize,
-    pub call: fn(&mut Interpreter, Vec<Value>) -> Result<Value, InterpretError>,
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Vec<Stmt>,
 }
 
 impl Callable {
-    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
-        (self.call)(interpreter, args)
+    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>) -> Self {
+        Self {
+            arity: params.len(),
+            name,
+            params,
+            body,
+        }
+    }
+
+    pub fn call(&self, args: Vec<Value>) -> Result<Value, InterpretError> {
+        let mut interpreter = Interpreter::new();
+        for (i, arg) in args.iter().enumerate() {
+            interpreter
+                .environment
+                .define(self.params[i].lexeme.clone(), arg.clone());
+        }
+        match interpreter.interpret_block(self.body.clone()) {
+            Ok(_) => Ok(Value {
+                primitive: Primitive::Nil,
+                token: Token::new(TokenType::NIL, String::from("nil"), 0),
+            }),
+            Err(e) => Err(e),
+        }
     }
 }
 

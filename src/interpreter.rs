@@ -8,7 +8,7 @@ use environment::Environment;
 mod environment;
 
 pub struct Interpreter {
-    environment: Environment,
+    pub environment: Environment,
 }
 
 #[derive(Debug)]
@@ -26,31 +26,7 @@ impl Display for InterpretError {
 
 impl Interpreter {
     pub fn new() -> Self {
-        let mut globals = Environment::global();
-        let value = Value {
-            primitive: Primitive::Callable(Callable {
-                arity: 0,
-                call: |_, _| {
-                    let now = std::time::SystemTime::now();
-                    let timestamp = now
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .expect("Time went backwards");
-                    Ok(Value {
-                        primitive: Primitive::Number(timestamp.as_secs_f64()),
-                        token: Token {
-                            token_type: TokenType::NUMBER,
-                            lexeme: "0".to_string(),
-                            line: 0,
-                        },
-                    })},
-            }),
-            token: Token {
-                token_type: TokenType::IDENTIFIER,
-                lexeme: "clock".to_string(),
-                line: 0,
-            },
-        };
-        globals.define("clock".to_string(), value);
+        let globals = Environment::global();
         Self {
             environment: Environment::new(Box::new(globals.clone())),
         }
@@ -58,6 +34,14 @@ impl Interpreter {
 
     pub fn interpret(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
         match stmt {
+            Stmt::Return(_, _) => Err(InterpretError {
+                message: "Return outside of function".to_string(),
+                token: Token {
+                    token_type: TokenType::RETURN,
+                    lexeme: "return".to_string(),
+                    line: 0,
+                },
+            }),
             Stmt::Expr(expr) => {
                 self.interpret_expr(expr)?;
                 Ok(())
@@ -93,21 +77,7 @@ impl Interpreter {
                 self.environment.assign(token.lexeme, value)?;
                 Ok(())
             }
-            Stmt::Block(stmts) => {
-                let environment = Environment::new(Box::new(self.environment.clone()));
-                self.environment = environment;
-                for stmt in stmts {
-                    match self.interpret(stmt) {
-                        Ok(_) => {}
-                        Err(error) => {
-                            self.environment.clear_child();
-                            return Err(error);
-                        }
-                    }
-                }
-                self.environment.clear_child();
-                Ok(())
-            }
+            Stmt::Block(stmts) => self.interpret_block(stmts),
             Stmt::If(condition, then_branch, else_branch) => {
                 let condition = self.interpret_expr(condition)?;
                 if condition.primitive == Primitive::Boolean(true) {
@@ -124,6 +94,16 @@ impl Interpreter {
                 }
                 Ok(())
             }
+            Stmt::Function(token, parameters, body) => {
+                let value = Value {
+                    primitive: Primitive::Callable(
+                        Callable::new(token.clone(), parameters, body),
+                    ),
+                    token: token.clone(),
+                };
+                self.environment.define(token.lexeme, value);
+                Ok(())
+            }
             Stmt::Break => Err(InterpretError {
                 message: "Break outside of loop".to_string(),
                 token: Token {
@@ -133,6 +113,13 @@ impl Interpreter {
                 },
             }),
         }
+    }
+
+    pub fn interpret_block(&mut self, block: Vec<Stmt>) -> Result<(), InterpretError> {
+        for stmt in block {
+            self.interpret(stmt)?;
+        }
+        Ok(())
     }
 
     fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
@@ -155,7 +142,7 @@ impl Interpreter {
                                 token: call.paren,
                             });
                         }
-                        callable.call(self, arguments)
+                        callable.call(arguments)
                     }
                     _ => Err(InterpretError {
                         message: "Can only call functions and classes.".to_string(),
