@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
+use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter}, stmt::Stmt};
 
 #[derive(Clone, Debug)]
 pub enum Expr {

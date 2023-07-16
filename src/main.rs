@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use interpreter::environment::Environment;
+
 
 mod expr;
 mod interpreter;
