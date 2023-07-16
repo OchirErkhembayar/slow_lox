@@ -1,10 +1,39 @@
+fun add(a, b) {
+    return real_adder(a, b);
+}
+
+fun real_adder(a, b) {
+    return a + b;
+}
+
+fun count_to_20(i) {
+    if (i >= 20) {
+        print i;
+        return;
+    }
+    print i;
+    i = i + 1;
+    count_to_20(i);
+}
+
+var a = 0;
+a + 3;
+print a;
+
+// count_to_20(0);
+
+// First print 0
+// Print 1
+// return fib(-1) (-1) + fib(0) (0)
+// return fib(0) (0) + fib(1) (1)
+
 fun fib(n) {
     if (n <= 1) return n;
 
     return fib(n - 2) + fib(n - 1);
 }
 
-for (var i = 0; i < 20; i = i + 1) {
-    print fib(i);
+for (var j = 0; j < 20; j = j + 1) {
+    print "j is " + j;
+    print fib(j);
 }
-

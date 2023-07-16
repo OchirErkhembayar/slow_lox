@@ -44,19 +44,13 @@ impl Display for InterpretError {
 
 impl Interpreter {
     pub fn new() -> Self {
-        let globals = Environment::global();
         Self {
-            environment: Environment::new(Box::new(globals.clone())),
+            environment: Environment::global(),
         }
-    }
-
-    pub fn new_environment(&mut self) {
-        self.environment = Environment::new(Box::new(self.environment.clone()));
     }
 }
 
 impl Interpreter {
-
     pub fn interpret(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
         match stmt {
             Stmt::Return(token, expr) => {
@@ -112,7 +106,18 @@ impl Interpreter {
                 self.environment.assign(token.lexeme, value)?;
                 Ok(())
             }
-            Stmt::Block(stmts) => self.interpret_block(stmts),
+            Stmt::Block(stmts) => {
+                self.environment = Environment::new(Box::new(self.environment.clone()));
+                match self.interpret_block(stmts) {
+                    Ok(_) => {}
+                    Err(err) => {
+                    self.environment.clear_child();
+                        return Err(err);
+                    }
+                };
+                self.environment.clear_child();
+                Ok(())
+            }
             Stmt::If(condition, then_branch, else_branch) => {
                 let condition = self.interpret_expr(condition)?;
                 if condition.primitive == Primitive::Boolean(true) {
@@ -144,17 +149,14 @@ impl Interpreter {
     }
 
     pub fn interpret_block(&mut self, stmts: Vec<Stmt>) -> Result<(), InterpretError> {
-        self.environment = Environment::new(Box::new(self.environment.clone()));
         for stmt in stmts {
             match self.interpret(stmt) {
                 Ok(_) => {}
                 Err(err) => {
-                    self.environment.clear_child();
                     return Err(err);
                 }
             }
         }
-        self.environment.clear_child();
         Ok(())
     }
 
@@ -178,7 +180,14 @@ impl Interpreter {
                                 call.paren,
                             ));
                         }
-                        callable.call(self, arguments)
+                        let previous = self.environment.clone();
+                        self.environment = Environment::new(Box::new(self.environment.get_global().clone()));
+                        for (i, arg) in arguments.iter().enumerate() {
+                            self.environment.define(callable.params[i].lexeme.clone(), arg.clone());
+                        }
+                        let value = callable.call(self);
+                        self.environment = previous;
+                        value
                     }
                     _ => Err(InterpretError::new(
                         "Can only call functions and classes.".to_string(),

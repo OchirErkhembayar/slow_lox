@@ -24,6 +24,13 @@ impl Environment {
         }
     }
 
+    pub fn get_global(&self) -> &Self {
+        match &self.enclosing {
+            Some(enclosing) => enclosing.get_global(),
+            None => self,
+        }
+    }
+
     pub fn clear_child(&mut self) {
         self.values = self.enclosing.as_ref().unwrap().values.clone();
         self.enclosing =  match self.enclosing {

@@ -121,16 +121,13 @@ impl Callable {
         }
     }
 
-    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
-        interpreter.environment = Environment::new(Box::new(interpreter.environment.clone()));
-        for (i, arg) in args.iter().enumerate() {
-            interpreter.environment.define(self.params[i].lexeme.clone(), arg.clone());
-        }
+    pub fn call(&self, interpreter: &mut Interpreter) -> Result<Value, InterpretError> {
         let value = match interpreter.interpret_block(self.body.clone()) {
-            Ok(_) => Ok(Value {
+            Ok(_) => {
+                Ok(Value {
                 primitive: Primitive::Nil,
-                token: Token::new(TokenType::NIL, String::from("nil"), 0),
-            }),
+                token: Token::new(TokenType::NIL, String::from("nil"), 0)
+            })},
             Err(e) => {
                 if let Some(value) = e.value {
                     Ok(value)
@@ -139,7 +136,6 @@ impl Callable {
                 }
             },
         };
-        interpreter.environment.clear_child();
         value
     }
 }
