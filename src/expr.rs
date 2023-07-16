@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter}, stmt::Stmt};
+use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -121,7 +121,12 @@ impl Callable {
         }
     }
 
-    pub fn call(&self, interpreter: &mut Interpreter) -> Result<Value, InterpretError> {
+    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
+        let previous = interpreter.environment.clone();
+        interpreter.environment = Environment::new(Box::new(interpreter.environment.get_global().clone()));
+        for (i, arg) in args.iter().enumerate() {
+            interpreter.environment.define(self.params[i].lexeme.clone(), arg.clone());
+        }
         let value = match interpreter.interpret_block(self.body.clone()) {
             Ok(_) => {
                 Ok(Value {
@@ -136,6 +141,7 @@ impl Callable {
                 }
             },
         };
+        interpreter.environment = previous;
         value
     }
 }

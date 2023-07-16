@@ -180,13 +180,7 @@ impl Interpreter {
                                 call.paren,
                             ));
                         }
-                        let previous = self.environment.clone();
-                        self.environment = Environment::new(Box::new(self.environment.get_global().clone()));
-                        for (i, arg) in arguments.iter().enumerate() {
-                            self.environment.define(callable.params[i].lexeme.clone(), arg.clone());
-                        }
-                        let value = callable.call(self);
-                        self.environment = previous;
+                        let value = callable.call(self, arguments);
                         value
                     }
                     _ => Err(InterpretError::new(
@@ -200,7 +194,7 @@ impl Interpreter {
                 let right = self.interpret_expr(*binary.right)?;
                 match binary.operator.lexeme.as_str() {
                     "-" => {
-                        if let (Primitive::Number(right), Primitive::Number(left)) =
+                        if let (Primitive::Number(left), Primitive::Number(right)) =
                             (&left.primitive, &right.primitive)
                         {
                             Ok(Value {

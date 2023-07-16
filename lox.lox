@@ -16,9 +16,8 @@ fun count_to_20(i) {
     count_to_20(i);
 }
 
-var a = 0;
-a + 3;
-print a;
+var a = 20;
+print a - 5;
 
 // count_to_20(0);
 
@@ -34,6 +33,5 @@ fun fib(n) {
 }
 
 for (var j = 0; j < 20; j = j + 1) {
-    print "j is " + j;
     print fib(j);
 }
