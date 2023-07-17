@@ -63,7 +63,7 @@ impl Interpreter {
         self.environment.borrow_mut().assign(token.lexeme, value)
     }
 
-    fn new_environment(&mut self) {
+    pub fn new_environment(&mut self) {
         let previous = self.environment.clone();
         self.environment = Rc::new(RefCell::new(Environment::new(previous)));
     }

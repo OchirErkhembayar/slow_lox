@@ -27,6 +27,8 @@ var counter = make_counter();
 
 counter();
 counter();
+counter();
+counter();
 
 var a = "Global";
 {

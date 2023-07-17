@@ -114,17 +114,23 @@ pub struct Callable {
 
 impl Callable {
     pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>, closure: Rc<RefCell<Environment>>) -> Self {
-        Self {
+        let callable = Self {
             arity: params.len(),
             name: name.clone(),
             params,
             body,
-            closure,
-        }
+            closure: Rc::new((*closure).clone()),
+        };
+        callable.closure.borrow_mut().define(name.lexeme.clone(), Value {
+            primitive: Primitive::Callable(callable.clone()),
+            token: name.clone(),
+        });
+        callable
     }
 
     pub fn call(&mut self, args: Vec<Value>) -> Result<Value, InterpretError> {
-        let mut new_interpreter = Interpreter::new(Rc::new((*self.closure).clone()));
+        let mut new_interpreter = Interpreter::new(self.closure.clone());
+        new_interpreter.new_environment();
         for (i, arg) in args.iter().enumerate() {
             new_interpreter.define(self.params[i].lexeme.clone(), arg.clone());
         }
