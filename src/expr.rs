@@ -109,21 +109,28 @@ pub struct Callable {
     pub name: Token,
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,
+    pub closure: Environment,
 }
 
 impl Callable {
-    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>) -> Self {
-        Self {
+    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>, closure: Environment) -> Self {
+        let mut callable = Self {
             arity: params.len(),
             name,
             params,
             body,
-        }
+            closure,
+        };
+        callable.closure.define(callable.name.lexeme.clone(), Value {
+            primitive: Primitive::Callable(callable.clone()),
+            token: callable.name.clone(),
+        });
+        callable
     }
 
-    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
+    pub fn call(&mut self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
         let previous = interpreter.environment.clone();
-        interpreter.environment = Environment::new(Box::new(interpreter.environment.get_global().clone()));
+        interpreter.environment = Environment::new(Box::new(self.closure.clone()));
         for (i, arg) in args.iter().enumerate() {
             interpreter.environment.define(self.params[i].lexeme.clone(), arg.clone());
         }

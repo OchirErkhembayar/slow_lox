@@ -135,13 +135,12 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Function(token, parameters, body) => {
-                let value = Value {
+                self.environment.define(token.lexeme.clone(), Value {
                     primitive: Primitive::Callable(
-                        Callable::new(token.clone(), parameters, body),
+                        Callable::new(token.clone(), parameters, body, self.environment.clone()),
                     ),
-                    token: token.clone(),
-                };
-                self.environment.define(token.lexeme, value);
+                    token,
+                });
                 Ok(())
             }
             Stmt::Break => todo!(),
@@ -169,7 +168,7 @@ impl Interpreter {
                     arguments.push(self.interpret_expr(argument)?);
                 }
                 match callee.primitive {
-                    Primitive::Callable(callable) => {
+                    Primitive::Callable(mut callable) => {
                         if arguments.len() != callable.arity {
                             return Err(InterpretError::new(
                                 format!(

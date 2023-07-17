@@ -1,31 +1,3 @@
-fun add(a, b) {
-    return real_adder(a, b);
-}
-
-fun real_adder(a, b) {
-    return a + b;
-}
-
-fun count_to_20(i) {
-    if (i >= 20) {
-        print i;
-        return;
-    }
-    print i;
-    i = i + 1;
-    count_to_20(i);
-}
-
-var a = 20;
-print a - 5;
-
-// count_to_20(0);
-
-// First print 0
-// Print 1
-// return fib(-1) (-1) + fib(0) (0)
-// return fib(0) (0) + fib(1) (1)
-
 fun fib(n) {
     if (n <= 1) return n;
 
@@ -33,5 +5,17 @@ fun fib(n) {
 }
 
 for (var j = 0; j < 20; j = j + 1) {
-    print fib(j);
+    // print fib(j);
+}
+
+var a = "Global";
+{
+    a = "Inner";
+    fun show_a() {
+        print a;
+    }
+
+    show_a();
+    var a = "b";
+    show_a();
 }
