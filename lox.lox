@@ -27,5 +27,15 @@ var counter = make_counter();
 
 counter();
 counter();
-counter();
-counter();
+
+var a = "Global";
+{
+    fun show_a() {
+        print a;
+    }
+
+    show_a();
+    var a = "Inner";
+    a = "Inner re-assigned";
+    show_a();
+}

@@ -194,7 +194,7 @@ impl Interpreter {
                                 call.paren,
                             ));
                         }
-                        let value = callable.call(self, arguments);
+                        let value = callable.call(arguments);
                         value
                     }
                     _ => Err(InterpretError::new(
