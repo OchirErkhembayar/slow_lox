@@ -1,11 +1,11 @@
 use crate::interpreter::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, cell::RefCell, rc::Rc};
 
 use super::InterpretError;
 
 #[derive(Clone, Debug)]
 pub struct Environment {
-    pub enclosing: Option<Box<Environment>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
     pub values: HashMap<String, Value>,
 }
 
@@ -17,36 +17,10 @@ impl Environment {
         }
     }
 
-    pub fn new(enclosing: Box<Environment>) -> Self {
+    pub fn new(enclosing: Rc<RefCell<Environment>>) -> Self {
         Self {
             enclosing: Some(enclosing),
             values: HashMap::new(),
-        }
-    }
-
-    pub fn get_global(&self) -> &Self {
-        match &self.enclosing {
-            Some(enclosing) => enclosing.get_global(),
-            None => self,
-        }
-    }
-
-    pub fn clear_child(&mut self) {
-        self.values = self.enclosing.as_ref().unwrap().values.clone();
-        self.enclosing =  match self.enclosing {
-            Some(ref mut enclosing) => enclosing.enclosing.take(),
-            None => None,
-        };
-    }
-
-    pub fn contains_key(&self, name: &str) -> bool {
-        if self.values.contains_key(name) {
-            true
-        } else {
-            match &self.enclosing {
-                Some(enclosing) => enclosing.contains_key(name),
-                None => false,
-            }
         }
     }
 
@@ -55,7 +29,7 @@ impl Environment {
             self.values.get(name).cloned()
         } else {
             match &self.enclosing {
-                Some(enclosing) => enclosing.get(name),
+                Some(enclosing) => enclosing.as_ref().borrow().get(name),
                 None => None,
             }
         }
@@ -72,7 +46,7 @@ impl Environment {
         }
 
         if let Some(ref mut enclosing) = self.enclosing {
-            return enclosing.assign(name, value);
+            return enclosing.as_ref().borrow_mut().assign(name, value);
         }
 
         Err(InterpretError::new(

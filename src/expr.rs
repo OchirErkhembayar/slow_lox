@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::{fmt::{Debug, Display}, rc::Rc, cell::RefCell};
 
 use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
 
@@ -109,30 +109,26 @@ pub struct Callable {
     pub name: Token,
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,
-    pub closure: Environment,
+    pub closure: Rc<RefCell<Environment>>,
 }
 
 impl Callable {
-    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>, closure: Environment) -> Self {
-        let mut callable = Self {
+    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>, closure: Rc<RefCell<Environment>>) -> Self {
+        let callable = Self {
             arity: params.len(),
-            name,
+            name: name.clone(),
             params,
             body,
-            closure,
+            closure: closure.clone(),
         };
-        callable.closure.define(callable.name.lexeme.clone(), Value {
-            primitive: Primitive::Callable(callable.clone()),
-            token: callable.name.clone(),
-        });
         callable
     }
 
     pub fn call(&mut self, interpreter: &mut Interpreter, args: Vec<Value>) -> Result<Value, InterpretError> {
         let previous = interpreter.environment.clone();
-        interpreter.environment = Environment::new(Box::new(self.closure.clone()));
+        interpreter.environment = Rc::new((*self.closure).clone());
         for (i, arg) in args.iter().enumerate() {
-            interpreter.environment.define(self.params[i].lexeme.clone(), arg.clone());
+            interpreter.define(self.params[i].lexeme.clone(), arg.clone());
         }
         let value = match interpreter.interpret_block(self.body.clone()) {
             Ok(_) => {

@@ -2,13 +2,15 @@ use crate::expr::{Expr, Value, Primitive, Callable};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
+use std::cell::RefCell;
 use std::fmt::Debug;
+use std::rc::Rc;
 use environment::Environment;
 
 pub mod environment;
 
 pub struct Interpreter {
-    pub environment: Environment,
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 #[derive(Debug)]
@@ -43,10 +45,27 @@ impl Display for InterpretError {
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
+    pub fn new(environment: Rc<RefCell<Environment>>) -> Self {
         Self {
-            environment: Environment::global(),
+            environment,
         }
+    }
+
+    fn get(&self, name: &str) -> Option<Value> {
+        self.environment.borrow().get(name)
+    }
+
+    pub fn define(&mut self, name: String, value: Value) {
+        self.environment.borrow_mut().define(name, value);
+    }
+
+    fn assign(&mut self, token: Token, value: Value) -> Result<(), InterpretError> {
+        self.environment.borrow_mut().assign(token.lexeme, value)
+    }
+
+    fn new_environment(&mut self) {
+        let previous = self.environment.clone();
+        self.environment = Rc::new(RefCell::new(Environment::new(previous)));
     }
 }
 
@@ -92,30 +111,24 @@ impl Interpreter {
                         },
                     },
                 };
-                self.environment.define(token.lexeme, value);
+                self.define(token.lexeme, value);
                 Ok(())
             }
             Stmt::Assign(token, expr) => {
-                if !self.environment.contains_key(token.lexeme.as_str()) {
-                    return Err(InterpretError::new(
-                        format!("Undefined variable '{}'.", token.lexeme),
-                        token,
-                    ));
-                }
                 let value = self.interpret_expr(expr)?;
-                self.environment.assign(token.lexeme, value)?;
-                Ok(())
+                self.assign(token, value)
             }
             Stmt::Block(stmts) => {
-                self.environment = Environment::new(Box::new(self.environment.clone()));
+                let previous = self.environment.clone();
+                self.new_environment();
                 match self.interpret_block(stmts) {
                     Ok(_) => {}
                     Err(err) => {
-                    self.environment.clear_child();
+                        self.environment = previous;
                         return Err(err);
                     }
                 };
-                self.environment.clear_child();
+                self.environment = previous;
                 Ok(())
             }
             Stmt::If(condition, then_branch, else_branch) => {
@@ -135,12 +148,14 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Function(token, parameters, body) => {
-                self.environment.define(token.lexeme.clone(), Value {
+                let callable = Callable::new(token.clone(), parameters, body, self.environment.clone());
+                let value = Value {
                     primitive: Primitive::Callable(
-                        Callable::new(token.clone(), parameters, body, self.environment.clone()),
+                        callable,
                     ),
-                    token,
-                });
+                    token: token.clone(),
+                };
+                self.define(token.lexeme.clone(), value);
                 Ok(())
             }
             Stmt::Break => todo!(),
@@ -372,7 +387,7 @@ impl Interpreter {
                 }
             }
             Expr::Variable(variable) => {
-                let value = self.environment.get(&variable.name.lexeme);
+                let value = self.get(&variable.name.lexeme);
                 match value {
                     Some(value) => Ok(value.clone()),
                     None => Err(InterpretError::new(

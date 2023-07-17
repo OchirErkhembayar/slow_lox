@@ -1,21 +1,31 @@
 fun fib(n) {
-    if (n <= 1) return n;
+    // print "n is " + n;
+    if (n <= 1) {
+        // print "Exiting with " + n;
+        return n;
+    }
 
     return fib(n - 2) + fib(n - 1);
 }
 
-for (var j = 0; j < 20; j = j + 1) {
-    // print fib(j);
+for (var i = 0; i < 20; i = i + 1) {
+    print fib(i);
 }
 
-var a = "Global";
-{
-    a = "Inner";
-    fun show_a() {
-        print a;
+fun make_counter() {
+    var i = 0;
+
+    fun count() {
+        i = i + 1;
+        print i;
     }
 
-    show_a();
-    var a = "b";
-    show_a();
+    return count;
 }
+
+var counter = make_counter();
+
+counter();
+counter();
+counter();
+counter();
