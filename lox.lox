@@ -1,7 +1,5 @@
 fun fib(n) {
-    // print "n is " + n;
     if (n <= 1) {
-        // print "Exiting with " + n;
         return n;
     }
 
@@ -32,6 +30,9 @@ counter();
 
 var a = "Global";
 {
+    /*
+        Testing to see if the variable a inside show_a gets mutated
+    */
     fun show_a() {
         print a;
     }
@@ -39,5 +40,5 @@ var a = "Global";
     show_a();
     var a = "Inner";
     a = "Inner re-assigned";
-    show_a();
+    show_a(); // This should be "Global"
 }
