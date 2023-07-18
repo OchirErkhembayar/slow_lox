@@ -134,7 +134,7 @@ impl Callable {
         for (i, arg) in args.iter().enumerate() {
             new_interpreter.define(self.params[i].lexeme.clone(), arg.clone());
         }
-        let value = match new_interpreter.interpret_block(self.body.clone()) {
+        match new_interpreter.interpret_block(self.body.clone()) {
             Ok(_) => {
                 Ok(Value {
                 primitive: Primitive::Nil,
@@ -147,8 +147,7 @@ impl Callable {
                     Err(e)
                 }
             },
-        };
-        value
+        }
     }
 }
 

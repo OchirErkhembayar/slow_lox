@@ -1,5 +1,5 @@
 use crate::interpreter::Value;
-use std::{collections::HashMap, cell::RefCell, rc::Rc};
+use std::{collections::{HashMap, hash_map}, cell::RefCell, rc::Rc};
 
 use super::InterpretError;
 
@@ -40,8 +40,8 @@ impl Environment {
     }
 
     pub fn assign(&mut self, name: String, value: Value) -> Result<(), InterpretError> {
-        if self.values.contains_key(&name) {
-            self.values.insert(name, value);
+        if let hash_map::Entry::Occupied(mut entry) = self.values.entry(name.clone()) {
+            entry.insert(value);
             return Ok(());
         }
 

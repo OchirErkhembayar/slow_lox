@@ -2,8 +2,7 @@ use std::{io::Write, rc::Rc, cell::RefCell};
 
 use interpreter::environment::Environment;
 
-
-
+mod resolver;
 mod expr;
 mod interpreter;
 mod parser;
@@ -63,8 +62,7 @@ fn run(input: String) {
     let tokens = scanner.scan_tokens();
     let mut parser = crate::parser::Parser::new(tokens);
     if let Ok(stmts) = parser.parse() {
-        let mut environment = Rc::new(RefCell::new(Environment::global()));
-        let mut interpreter = interpreter::Interpreter::new(environment);
+        let mut interpreter = interpreter::Interpreter::new(Rc::new(RefCell::new(Environment::global())));
         for stmt in stmts.into_iter() {
             match interpreter.interpret(stmt) {
                 Ok(_) => (),

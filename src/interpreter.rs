@@ -21,7 +21,7 @@ pub struct InterpretError {
 }
 
 impl InterpretError {
-    fn new(message: String, token: Token) -> Self {
+    pub fn new(message: String, token: Token) -> Self {
         Self {
             message,
             token,
@@ -66,6 +66,34 @@ impl Interpreter {
     pub fn new_environment(&mut self) {
         let previous = self.environment.clone();
         self.environment = Rc::new(RefCell::new(Environment::new(previous)));
+    }
+
+    fn is_truthy(&self, value: &Value) -> bool {
+        match value.primitive {
+            Primitive::Nil => false,
+            Primitive::Boolean(bool) => bool,
+            _ => true,
+        }
+    }
+
+    fn to_number(&self, value: Value) -> Result<f64, InterpretError> {
+        match value.primitive {
+            Primitive::Number(number) => Ok(number),
+            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError::new(
+                format!("Expected number, got {}", value.primitive),
+                value.token,
+            ))
+        }
+    }
+
+    fn is_equal(&self, left: Value, right: Value) -> bool {
+        match (left.primitive, right.primitive) {
+            (Primitive::Nil, Primitive::Nil) => true,
+            (Primitive::Boolean(left), Primitive::Boolean(right)) => left == right,
+            (Primitive::Number(left), Primitive::Number(right)) => left == right,
+            (Primitive::String(left), Primitive::String(right)) => left == right,
+            _ => false,
+        }
     }
 }
 
@@ -155,7 +183,7 @@ impl Interpreter {
                     ),
                     token: token.clone(),
                 };
-                self.define(token.lexeme.clone(), value);
+                self.define(token.lexeme, value);
                 Ok(())
             }
             Stmt::Break => todo!(),
@@ -174,7 +202,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
+    pub fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
         match expr {
             Expr::Call(call) => {
                 let callee = self.interpret_expr(*call.callee)?;
@@ -194,8 +222,7 @@ impl Interpreter {
                                 call.paren,
                             ));
                         }
-                        let value = callable.call(arguments);
-                        value
+                        callable.call(arguments)
                     }
                     _ => Err(InterpretError::new(
                         "Can only call functions and classes.".to_string(),
@@ -389,7 +416,7 @@ impl Interpreter {
             Expr::Variable(variable) => {
                 let value = self.get(&variable.name.lexeme);
                 match value {
-                    Some(value) => Ok(value.clone()),
+                    Some(value) => Ok(value),
                     None => Err(InterpretError::new(
                         format!("Undefined variable: {}", variable.name.lexeme),
                         variable.name,
@@ -410,34 +437,6 @@ impl Interpreter {
                 }
                 self.interpret_expr(*logical.right)
             },
-        }
-    }
-
-    fn is_truthy(&self, value: &Value) -> bool {
-        match value.primitive {
-            Primitive::Nil => false,
-            Primitive::Boolean(bool) => bool,
-            _ => true,
-        }
-    }
-
-    fn to_number(&self, value: Value) -> Result<f64, InterpretError> {
-        match value.primitive {
-            Primitive::Number(number) => Ok(number),
-            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError::new(
-                format!("Expected number, got {}", value.primitive),
-                value.token,
-            ))
-        }
-    }
-
-    fn is_equal(&self, left: Value, right: Value) -> bool {
-        match (left.primitive, right.primitive) {
-            (Primitive::Nil, Primitive::Nil) => true,
-            (Primitive::Boolean(left), Primitive::Boolean(right)) => left == right,
-            (Primitive::Number(left), Primitive::Number(right)) => left == right,
-            (Primitive::String(left), Primitive::String(right)) => left == right,
-            _ => false,
         }
     }
 }

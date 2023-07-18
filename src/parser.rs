@@ -338,7 +338,7 @@ impl Parser {
             Ok(expr) => Ok(expr),
             Err(err) => {
                 crate::error(err.token.line, err.message.as_str());
-                return Err(err);
+                Err(err)
             }
         }
 
