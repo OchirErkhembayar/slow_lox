@@ -1,3 +1,4 @@
+/*
 fun fib(n) {
     if (n <= 1) {
         return n;
@@ -7,7 +8,7 @@ fun fib(n) {
 }
 
 for (var i = 0; i < 20; i = i + 1) {
-    print fib(i);
+    // print fib(i);
 }
 
 fun make_counter() {
@@ -25,14 +26,10 @@ var counter = make_counter();
 
 counter();
 counter();
-counter();
-counter();
 
 var a = "Global";
 {
-    /*
-        Testing to see if the variable a inside show_a gets mutated
-    */
+    // Testing to see if the variable a inside show_a gets mutated
     fun show_a() {
         print a;
     }
@@ -42,3 +39,12 @@ var a = "Global";
     a = "Inner re-assigned";
     show_a(); // This should be "Global"
 }
+*/
+class Foobar {}
+
+{
+    var inst = Foobar();
+    inst.a = 3;
+    print inst.a;
+}
+

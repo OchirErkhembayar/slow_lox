@@ -1,15 +1,6 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fmt::{Debug, Display},
-    rc::Rc,
-};
-
-use crate::{
-    interpreter::{environment::Environment, InterpretError, Interpreter},
-    stmt::Stmt,
-    token::{Token, TokenType},
-};
+use crate::primitive::Primitive;
+use crate::token::Token;
+use std::fmt::Debug;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expr {
@@ -22,6 +13,8 @@ pub enum Expr {
     Variable(Variable),
     Assign(Assignment),
     Call(Call),
+    Get(GetExpr),
+    Set(SetExpr),
 }
 
 // 1 + 2, 3 * 4, etc.
@@ -84,105 +77,23 @@ pub struct Call {
     pub arguments: Vec<Expr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Value {
     pub primitive: Primitive,
     pub token: Token,
 }
 
-#[derive(PartialEq, Clone, Debug)]
-pub enum Primitive {
-    Number(f64),
-    Boolean(bool),
-    Nil,
-    String(String),
-    Callable(Callable),
-}
-
-impl PartialEq for Callable {
-    fn eq(&self, _other: &Self) -> bool {
-        false
-    }
-}
-
-impl Debug for Callable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<fn>")
-    }
-}
-
-#[derive(Clone)]
-pub struct Callable {
-    pub arity: usize,
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct GetExpr {
+    pub expr: Box<Expr>,
     pub name: Token,
-    pub params: Vec<Token>,
-    pub body: Vec<Stmt>,
-    pub closure: Rc<RefCell<Environment>>,
 }
 
-impl Callable {
-    pub fn new(
-        name: Token,
-        params: Vec<Token>,
-        body: Vec<Stmt>,
-        closure: Rc<RefCell<Environment>>,
-    ) -> Self {
-        let callable = Self {
-            arity: params.len(),
-            name: name.clone(),
-            params,
-            body,
-            closure,
-        };
-        callable
-    }
-
-    pub fn call(
-        &mut self,
-        args: Vec<Value>,
-        locals: HashMap<Expr, usize>,
-    ) -> Result<Value, InterpretError> {
-        let mut new_interpreter = Interpreter::new_with_locals(self.closure.clone(), locals);
-        new_interpreter.new_environment();
-        for (i, arg) in args.iter().enumerate() {
-            new_interpreter.define(self.params[i].lexeme.clone(), arg.clone());
-        }
-        match new_interpreter.interpret_block(self.body.clone()) {
-            Ok(_) => Ok(Value {
-                primitive: Primitive::Nil,
-                token: Token::new(TokenType::NIL, String::from("nil"), 0),
-            }),
-            Err(e) => {
-                if let Some(value) = e.value {
-                    Ok(value)
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-}
-
-impl Display for Primitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Primitive::Number(number) => write!(f, "{}", number),
-            Primitive::Boolean(boolean) => write!(f, "{}", boolean),
-            Primitive::Nil => write!(f, "nil"),
-            Primitive::String(string) => write!(f, "\"{}\"", string),
-            Primitive::Callable(callable) => write!(
-                f,
-                "<fn> {}({})",
-                callable.name.lexeme,
-                callable
-                    .params
-                    .iter()
-                    .map(|param| param.lexeme.clone())
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-        }
-    }
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct SetExpr {
+    pub expr: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
 }
 
 #[allow(dead_code)]
@@ -238,6 +149,17 @@ pub fn print(expr: Expr) -> String {
                 print(*call.callee),
                 call.paren.lexeme,
                 args
+            )
+        }
+        Expr::Get(get_expr) => {
+            format!("(get {})", print(*get_expr.expr))
+        }
+        Expr::Set(set_expr) => {
+            format!(
+                "(set {} {} {})",
+                set_expr.name.lexeme,
+                print(*set_expr.expr),
+                print(*set_expr.value)
             )
         }
     }

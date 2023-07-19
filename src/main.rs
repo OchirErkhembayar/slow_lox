@@ -6,6 +6,7 @@ use interpreter::environment::Environment;
 mod expr;
 mod interpreter;
 mod parser;
+mod primitive;
 mod resolver;
 mod scanner;
 mod stmt;

@@ -115,6 +115,10 @@ impl<'a> Resolver<'a> {
             Stmt::Assign(_, expr) => {
                 self.resolve_expr(expr)?;
             }
+            Stmt::Class(token, methods) => {
+                self.declare(token.clone())?;
+                self.define(token.clone())?;
+            }
             Stmt::Break => {}
         }
         Ok(())
@@ -162,6 +166,13 @@ impl<'a> Resolver<'a> {
                 self.resolve_expr(*ternary.condition)?;
                 self.resolve_expr(*ternary.then_branch)?;
                 self.resolve_expr(*ternary.else_branch)?;
+            }
+            Expr::Get(get) => {
+                self.resolve_expr(*get.expr)?;
+            }
+            Expr::Set(set) => {
+                self.resolve_expr(*set.expr)?;
+                self.resolve_expr(*set.value)?;
             }
         }
         Ok(())

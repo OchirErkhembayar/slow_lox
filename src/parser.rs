@@ -1,5 +1,6 @@
 use crate::expr::{
-    Assignment, Binary, Call, Expr, Grouping, Literal, Logical, Ternary, Unary, Variable,
+    Assignment, Binary, Call, Expr, GetExpr, Grouping, Literal, Logical, SetExpr, Ternary, Unary,
+    Variable,
 };
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
@@ -9,6 +10,7 @@ pub struct Parser {
     current: usize,
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     pub token: Token,
     pub message: String,
@@ -121,8 +123,22 @@ impl Parser {
         if self.match_token(vec![TokenType::WHILE]) {
             return self.while_statement();
         }
+        if self.match_token(vec![TokenType::CLASS]) {
+            return self.class_declaration();
+        }
 
         self.statement()
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::IDENTIFIER, "Expect class name.")?;
+        self.consume(TokenType::LEFT_BRACE, "Expect '{' before class body.")?;
+        let mut methods = Vec::new();
+        while !self.check(TokenType::RIGHT_BRACE) && !self.is_at_end() {
+            methods.push(self.func_declaration("method".to_string())?);
+        }
+        self.consume(TokenType::RIGHT_BRACE, "Expect '}' after class body.")?;
+        Ok(Stmt::Class(name, methods))
     }
 
     fn func_declaration(&mut self, kind: String) -> Result<Stmt, ParseError> {
@@ -380,6 +396,14 @@ impl Parser {
                         value: Box::new(value),
                     }));
                 }
+                Expr::Get(get) => {
+                    let set = Ok(Expr::Set(SetExpr {
+                        expr: get.expr,
+                        name: get.name,
+                        value: Box::new(value),
+                    }));
+                    return set;
+                }
                 _ => {
                     crate::error(equals.line, "Invalid assignment target.");
                     return Err(ParseError {
@@ -535,6 +559,12 @@ impl Parser {
         loop {
             if self.match_token(vec![TokenType::LEFT_PAREN]) {
                 expr = self.finish_call(expr)?;
+            } else if self.match_token(vec![TokenType::DOT]) {
+                let name = self.consume(TokenType::IDENTIFIER, "Expect property name after .")?;
+                expr = Expr::Get(GetExpr {
+                    expr: Box::new(expr),
+                    name,
+                });
             } else {
                 break;
             }

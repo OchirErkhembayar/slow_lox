@@ -1,4 +1,5 @@
-use crate::expr::{Callable, Expr, Primitive, Value};
+use crate::expr::{Expr, Value};
+use crate::primitive::{Callable, Class, Instance, LoxCallable, Primitive};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
@@ -121,7 +122,9 @@ impl Interpreter {
             Primitive::Callable(_)
             | Primitive::String(_)
             | Primitive::Nil
-            | Primitive::Boolean(_) => Err(InterpretError::new(
+            | Primitive::Boolean(_)
+            | Primitive::Instance(_)
+            | Primitive::Class(_) => Err(InterpretError::new(
                 format!("Expected number, got {}", value.primitive),
                 value.token,
             )),
@@ -231,6 +234,15 @@ impl Interpreter {
                 self.define(token.lexeme, value);
                 Ok(())
             }
+            Stmt::Class(name, methods) => {
+                let class = Class::new(name.clone(), methods);
+                let value = Value {
+                    primitive: Primitive::Class(class.clone()),
+                    token: name,
+                };
+                self.define(class.name.lexeme, value);
+                Ok(())
+            }
             Stmt::Break => todo!(),
         }
     }
@@ -249,6 +261,33 @@ impl Interpreter {
 
     pub fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
         match expr.clone() {
+            Expr::Get(get_expr) => {
+                let object = self.interpret_expr(*get_expr.expr)?;
+                println!("Object we're getting: {:?}", object);
+                match object.primitive {
+                    Primitive::Instance(instance) => instance.get(get_expr.name.clone()),
+                    _ => Err(InterpretError::new(
+                        "Only instances have properties.".to_string(),
+                        get_expr.name,
+                    )),
+                }
+            }
+            Expr::Set(set_expr) => {
+                let object = self.interpret_expr(*set_expr.expr)?;
+                match object.primitive {
+                    Primitive::Instance(mut instance) => {
+                        let value = self.interpret_expr(*set_expr.value)?;
+                        println!("Instace fields before: {:?}", instance.fields);
+                        instance.set(set_expr.name.clone(), value.clone());
+                        println!("Instance fields after: {:?}", instance.fields);
+                        return Ok(value);
+                    }
+                    _ => Err(InterpretError::new(
+                        "Only instances have fields.".to_string(),
+                        set_expr.name,
+                    )),
+                }
+            }
             Expr::Call(call) => {
                 let callee = self.interpret_expr(*call.callee)?;
                 let mut arguments = Vec::new();
@@ -256,7 +295,7 @@ impl Interpreter {
                     arguments.push(self.interpret_expr(argument)?);
                 }
                 match callee.primitive {
-                    Primitive::Callable(mut callable) => {
+                    Primitive::Callable(callable) => {
                         if arguments.len() != callable.arity {
                             return Err(InterpretError::new(
                                 format!(
@@ -268,6 +307,18 @@ impl Interpreter {
                             ));
                         }
                         callable.call(arguments, self.locals.clone())
+                    }
+                    Primitive::Class(class) => {
+                        if arguments.len() != 0 {
+                            return Err(InterpretError::new(
+                                format!("Expected 0 arguments but got {}.", arguments.len()),
+                                call.paren,
+                            ));
+                        }
+                        Ok(Value {
+                            primitive: Primitive::Instance(Instance::new(class)),
+                            token: call.paren,
+                        })
                     }
                     _ => Err(InterpretError::new(
                         "Can only call functions and classes.".to_string(),
