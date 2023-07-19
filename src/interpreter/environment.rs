@@ -1,5 +1,9 @@
 use crate::interpreter::Value;
-use std::{collections::{HashMap, hash_map}, cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{hash_map, HashMap},
+    rc::Rc,
+};
 
 use super::InterpretError;
 
@@ -36,7 +40,10 @@ impl Environment {
         if self.values.contains_key(name) {
             self.values.get(name).cloned()
         } else {
-            self.ancestor(distance).as_ref().borrow().get(distance, name)
+            self.ancestor(distance)
+                .as_ref()
+                .borrow()
+                .get(distance, name)
         }
     }
 
@@ -69,7 +76,11 @@ impl Environment {
     }
 
     pub fn assign_at(&mut self, distance: usize, name: String, value: Value) {
-        self.ancestor(distance).as_ref().borrow_mut().values.insert(name, value);
+        self.ancestor(distance)
+            .as_ref()
+            .borrow_mut()
+            .values
+            .insert(name, value);
     }
 
     pub fn assign_global(&mut self, name: String, value: Value) {

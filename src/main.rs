@@ -1,12 +1,12 @@
-use std::{io::Write, rc::Rc, cell::RefCell};
+use std::{cell::RefCell, io::Write, rc::Rc};
 
-use interpreter::environment::Environment;
 use crate::resolver::Resolver;
+use interpreter::environment::Environment;
 
-mod resolver;
 mod expr;
 mod interpreter;
 mod parser;
+mod resolver;
 mod scanner;
 mod stmt;
 mod token;
@@ -63,7 +63,8 @@ fn run(input: String) {
     let tokens = scanner.scan_tokens();
     let mut parser = crate::parser::Parser::new(tokens);
     if let Ok(stmts) = parser.parse() {
-        let mut interpreter = interpreter::Interpreter::new(Rc::new(RefCell::new(Environment::global())));
+        let mut interpreter =
+            interpreter::Interpreter::new(Rc::new(RefCell::new(Environment::global())));
         let mut resolver = Resolver::new(&mut interpreter);
         if let Err(e) = resolver.resolve(stmts.clone()) {
             error(e.token.line, &e.message);

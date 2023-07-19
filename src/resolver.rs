@@ -1,10 +1,22 @@
 use std::collections::HashMap;
 
-use crate::{interpreter::{Interpreter, InterpretError}, stmt::Stmt, token::Token, expr::Expr};
+use crate::{
+    expr::Expr,
+    interpreter::{InterpretError, Interpreter},
+    stmt::Stmt,
+    token::Token,
+};
+
+#[derive(Clone)]
+enum FunctionType {
+    None,
+    Function,
+}
 
 pub struct Resolver<'a> {
     stacks: Vec<HashMap<String, bool>>,
     interpreter: &'a mut Interpreter,
+    current_function: FunctionType,
 }
 
 impl<'a> Resolver<'a> {
@@ -12,6 +24,7 @@ impl<'a> Resolver<'a> {
         Self {
             stacks: Vec::new(),
             interpreter,
+            current_function: FunctionType::None,
         }
     }
 
@@ -57,46 +70,52 @@ impl<'a> Resolver<'a> {
             Stmt::Function(token, tokens, stmts) => {
                 self.declare(token.clone())?;
                 self.define(token.clone())?;
-                self.resolve_function(tokens, stmts)?;
-            },
+                self.resolve_function(tokens, stmts, FunctionType::Function)?;
+            }
             Stmt::Expr(expr) => {
                 self.resolve_expr(expr)?;
-            },
+            }
             Stmt::If(condition, then_branch, else_branch) => {
                 self.resolve_expr(condition)?;
                 self.resolve_stmt(*then_branch)?;
                 if let Some(else_stmt) = else_branch {
                     self.resolve_stmt(*else_stmt)?;
                 }
-            },
+            }
             Stmt::Print(expr) => {
                 self.resolve_expr(expr)?;
-            },
-            Stmt::Return(_, expr) => {
+            }
+            Stmt::Return(token, expr) => {
+                if let FunctionType::None = self.current_function {
+                    return Err(InterpretError::new(
+                        String::from("Cannot return from top-level code."),
+                        token,
+                    ));
+                }
                 if let Some(expr) = expr {
                     self.resolve_expr(expr)?;
                 }
-            },
+            }
             Stmt::While(condition, body) => {
                 self.resolve_expr(condition)?;
                 self.resolve_stmt(*body)?;
-            },
+            }
             Stmt::Block(stmts) => {
                 self.begin_scope();
                 self.resolve(stmts)?;
                 self.end_scope();
-            },
+            }
             Stmt::Var(name, expr) => {
                 self.declare(name.clone())?;
                 if let Some(expr) = expr {
                     self.resolve_expr(expr)?;
                 }
                 self.define(name)?;
-            },
+            }
             Stmt::Assign(_, expr) => {
                 self.resolve_expr(expr)?;
-            },
-            Stmt::Break => {},
+            }
+            Stmt::Break => {}
         }
         Ok(())
     }
@@ -108,39 +127,42 @@ impl<'a> Resolver<'a> {
                 for arg in call.arguments {
                     self.resolve_expr(arg)?;
                 }
-            },
+            }
             Expr::Assign(assign) => {
                 self.resolve_expr(*assign.value.clone())?;
                 self.resolve_local(*assign.value, assign.name);
-            },
+            }
             Expr::Binary(binary) => {
                 self.resolve_expr(*binary.left)?;
                 self.resolve_expr(*binary.right)?;
-            },
+            }
             Expr::Grouping(grouping) => {
                 self.resolve_expr(*grouping.expression)?;
-            },
-            Expr::Literal(_) => {},
+            }
+            Expr::Literal(_) => {}
             Expr::Logical(logical) => {
                 self.resolve_expr(*logical.left)?;
                 self.resolve_expr(*logical.right)?;
-            },
+            }
             Expr::Unary(unary) => {
                 self.resolve_expr(*unary.right)?;
-            },
+            }
             Expr::Variable(var) => {
                 if let Some(scope) = self.stacks.last_mut() {
                     if scope.get(&var.name.lexeme) == Some(&false) {
-                        crate::error(var.name.line, "Cannot read local variable in its own initializer.");
+                        crate::error(
+                            var.name.line,
+                            "Cannot read local variable in its own initializer.",
+                        );
                     }
                 }
                 self.resolve_var_expr(Expr::Variable(var))?;
-            },
+            }
             Expr::Ternary(ternary) => {
                 self.resolve_expr(*ternary.condition)?;
                 self.resolve_expr(*ternary.then_branch)?;
                 self.resolve_expr(*ternary.else_branch)?;
-            },
+            }
         }
         Ok(())
     }
@@ -150,7 +172,10 @@ impl<'a> Resolver<'a> {
         if let Expr::Variable(var) = expr {
             if let Some(scope) = self.stacks.last_mut() {
                 if scope.get(&var.name.lexeme) == Some(&false) {
-                    crate::error(var.name.line, "Cannot read local variable in its own initializer.");
+                    crate::error(
+                        var.name.line,
+                        "Cannot read local variable in its own initializer.",
+                    );
                 }
             }
             self.resolve_local(expr_clone, var.name);
@@ -158,7 +183,15 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_function(&mut self, params: Vec<Token>, stmts: Vec<Stmt>) -> Result<(), InterpretError> {
+    fn resolve_function(
+        &mut self,
+        params: Vec<Token>,
+        stmts: Vec<Stmt>,
+        function_type: FunctionType,
+    ) -> Result<(), InterpretError> {
+        let enclosing_function = self.current_function.clone();
+        self.current_function = function_type;
+
         self.begin_scope();
         for param in params {
             self.declare(param.clone())?;
@@ -166,6 +199,8 @@ impl<'a> Resolver<'a> {
         }
         self.resolve(stmts)?;
         self.end_scope();
+
+        self.current_function = enclosing_function;
         Ok(())
     }
 

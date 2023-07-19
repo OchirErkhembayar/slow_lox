@@ -1,12 +1,12 @@
-use crate::expr::{Expr, Value, Primitive, Callable};
+use crate::expr::{Callable, Expr, Primitive, Value};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use core::fmt::Display;
+use environment::Environment;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
-use std::collections::HashMap;
-use environment::Environment;
 
 pub mod environment;
 
@@ -54,7 +54,10 @@ impl Interpreter {
         }
     }
 
-    pub fn new_with_locals(environment: Rc<RefCell<Environment>>, locals: HashMap<Expr, usize>) -> Self {
+    pub fn new_with_locals(
+        environment: Rc<RefCell<Environment>>,
+        locals: HashMap<Expr, usize>,
+    ) -> Self {
         Self {
             environment,
             locals,
@@ -90,10 +93,18 @@ impl Interpreter {
     fn look_up_var(&self, name: &Token, expr: &Expr) -> Result<Value, InterpretError> {
         let distance = self.locals.get(expr);
         if let Some(distance) = distance {
-            self.environment.borrow().get(*distance, name.lexeme.as_str())
+            self.environment
+                .borrow()
+                .get(*distance, name.lexeme.as_str())
         } else {
             self.environment.borrow().get_global(name.lexeme.as_str())
-        }.ok_or_else(|| InterpretError::new(format!("Undefined variable '{}'.", name.lexeme), name.clone()))
+        }
+        .ok_or_else(|| {
+            InterpretError::new(
+                format!("Undefined variable '{}'.", name.lexeme),
+                name.clone(),
+            )
+        })
     }
 
     fn is_truthy(&self, value: &Value) -> bool {
@@ -107,10 +118,13 @@ impl Interpreter {
     fn to_number(&self, value: Value) -> Result<f64, InterpretError> {
         match value.primitive {
             Primitive::Number(number) => Ok(number),
-            Primitive::Callable(_) | Primitive::String(_) | Primitive::Nil | Primitive::Boolean(_) => Err(InterpretError::new(
+            Primitive::Callable(_)
+            | Primitive::String(_)
+            | Primitive::Nil
+            | Primitive::Boolean(_) => Err(InterpretError::new(
                 format!("Expected number, got {}", value.primitive),
                 value.token,
-            ))
+            )),
         }
     }
 
@@ -137,15 +151,19 @@ impl Interpreter {
                         value,
                     ));
                 }
-                Err(InterpretError::with_value("Successful return".to_string(), token.clone(), Value {
-                    primitive: Primitive::Nil,
-                    token: Token {
-                        token_type: TokenType::NIL,
-                        lexeme: "nil".to_string(),
-                        line: token.line,
+                Err(InterpretError::with_value(
+                    "Successful return".to_string(),
+                    token.clone(),
+                    Value {
+                        primitive: Primitive::Nil,
+                        token: Token {
+                            token_type: TokenType::NIL,
+                            lexeme: "nil".to_string(),
+                            line: token.line,
+                        },
                     },
-                }))
-            },
+                ))
+            }
             Stmt::Expr(expr) => {
                 self.interpret_expr(expr)?;
                 Ok(())
@@ -204,11 +222,10 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Function(token, parameters, body) => {
-                let callable = Callable::new(token.clone(), parameters, body, self.environment.clone());
+                let callable =
+                    Callable::new(token.clone(), parameters, body, self.environment.clone());
                 let value = Value {
-                    primitive: Primitive::Callable(
-                        callable,
-                    ),
+                    primitive: Primitive::Callable(callable),
                     token: token.clone(),
                 };
                 self.define(token.lexeme, value);
@@ -381,11 +398,11 @@ impl Interpreter {
                         token: binary.operator,
                     }),
                     _ => Err(InterpretError::new(
-                            format!(
-                                "Operands must be two numbers or two strings: {} + {}",
-                                left.token.lexeme, right.token.lexeme
-                            ),
-                            binary.operator,
+                        format!(
+                            "Operands must be two numbers or two strings: {} + {}",
+                            left.token.lexeme, right.token.lexeme
+                        ),
+                        binary.operator,
                     )),
                 }
             }
@@ -412,9 +429,9 @@ impl Interpreter {
                     token: literal.value,
                 }),
                 _ => Err(InterpretError::new(
-                        format!("Unknown literal: {}", literal.value.lexeme),
-                        literal.value,
-                ))
+                    format!("Unknown literal: {}", literal.value.lexeme),
+                    literal.value,
+                )),
             },
             Expr::Unary(unary) => {
                 let right = self.interpret_expr(*unary.right)?;
@@ -430,7 +447,7 @@ impl Interpreter {
                     _ => Err(InterpretError::new(
                         format!("Unknown unary operator: {}", unary.operator.lexeme),
                         unary.operator,
-                    ))
+                    )),
                 }
             }
             Expr::Ternary(ternary) => {
@@ -441,20 +458,24 @@ impl Interpreter {
                     Ok(self.interpret_expr(*ternary.else_branch)?)
                 }
             }
-            Expr::Variable(variable) => {
-                Ok(self.look_up_var(&variable.name, &expr)?)
-            }
+            Expr::Variable(variable) => Ok(self.look_up_var(&variable.name, &expr)?),
             Expr::Assign(assign) => {
                 let distance = self.get_local(&expr);
                 if let Some(distance) = distance.clone() {
                     let expr = self.interpret_expr(*assign.value.clone())?;
-                    self.environment.borrow_mut().assign_at(distance, assign.name.lexeme.clone(), expr);
+                    self.environment.borrow_mut().assign_at(
+                        distance,
+                        assign.name.lexeme.clone(),
+                        expr,
+                    );
                 } else {
                     let expr = self.interpret_expr(*assign.value.clone())?;
-                    self.environment.borrow_mut().assign_global(assign.name.lexeme.clone(), expr);
+                    self.environment
+                        .borrow_mut()
+                        .assign_global(assign.name.lexeme.clone(), expr);
                 }
                 Ok(self.interpret_expr(*assign.value)?)
-            },
+            }
             Expr::Logical(logical) => {
                 let left = self.interpret_expr(*logical.left)?;
                 if logical.operator.token_type == TokenType::OR {
@@ -467,7 +488,7 @@ impl Interpreter {
                     }
                 }
                 self.interpret_expr(*logical.right)
-            },
+            }
         }
     }
 }

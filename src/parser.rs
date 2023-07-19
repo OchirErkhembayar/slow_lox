@@ -1,4 +1,6 @@
-use crate::expr::{Assignment, Binary, Expr, Grouping, Literal, Ternary, Unary, Variable, Logical, Call};
+use crate::expr::{
+    Assignment, Binary, Call, Expr, Grouping, Literal, Logical, Ternary, Unary, Variable,
+};
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 
@@ -124,8 +126,14 @@ impl Parser {
     }
 
     fn func_declaration(&mut self, kind: String) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenType::IDENTIFIER, format!("Expect {} name.", kind).as_str())?;
-        self.consume(TokenType::LEFT_PAREN, format!("Expect '(' after {} name.", kind).as_str())?;
+        let name = self.consume(
+            TokenType::IDENTIFIER,
+            format!("Expect {} name.", kind).as_str(),
+        )?;
+        self.consume(
+            TokenType::LEFT_PAREN,
+            format!("Expect '(' after {} name.", kind).as_str(),
+        )?;
         let mut parameters = Vec::new();
         if !self.check(TokenType::RIGHT_PAREN) {
             loop {
@@ -142,7 +150,10 @@ impl Parser {
             }
         }
         self.consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.")?;
-        self.consume(TokenType::LEFT_BRACE, format!("Expect '{{' before {} body.", kind).as_str())?;
+        self.consume(
+            TokenType::LEFT_BRACE,
+            format!("Expect '{{' before {} body.", kind).as_str(),
+        )?;
         let body = self.block()?;
         Ok(Stmt::Function(name, parameters, body))
     }
@@ -196,7 +207,9 @@ impl Parser {
             body = Stmt::Block(vec![
                 body,
                 match increment {
-                    Expr::Assign(assignment) => Stmt::Assign(assignment.name.clone(), Expr::Assign(assignment)),
+                    Expr::Assign(assignment) => {
+                        Stmt::Assign(assignment.name.clone(), Expr::Assign(assignment))
+                    }
                     _ => Stmt::Expr(increment),
                 },
             ]);
@@ -215,10 +228,7 @@ impl Parser {
         body = Stmt::While(condition.unwrap(), Box::new(body));
 
         if let Some(initializer) = initializer {
-            body = Stmt::Block(vec![
-                initializer,
-                body,
-            ]);
+            body = Stmt::Block(vec![initializer, body]);
         }
 
         Ok(body)
@@ -234,11 +244,7 @@ impl Parser {
             else_branch = Some(Box::new(self.statement()?));
         }
 
-        Ok(Stmt::If(
-            condition,
-            Box::new(then_branch),
-            else_branch,
-        ))
+        Ok(Stmt::If(condition, Box::new(then_branch), else_branch))
     }
 
     fn while_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -607,4 +613,3 @@ impl Parser {
         })
     }
 }
-

@@ -1,6 +1,15 @@
-use std::{fmt::{Debug, Display}, rc::Rc, cell::RefCell, collections::HashMap};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{Debug, Display},
+    rc::Rc,
+};
 
-use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
+use crate::{
+    interpreter::{environment::Environment, InterpretError, Interpreter},
+    stmt::Stmt,
+    token::{Token, TokenType},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expr {
@@ -75,7 +84,6 @@ pub struct Call {
     pub arguments: Vec<Expr>,
 }
 
-
 #[derive(Clone, Debug)]
 pub struct Value {
     pub primitive: Primitive,
@@ -113,7 +121,12 @@ pub struct Callable {
 }
 
 impl Callable {
-    pub fn new(name: Token, params: Vec<Token>, body: Vec<Stmt>, closure: Rc<RefCell<Environment>>) -> Self {
+    pub fn new(
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Stmt>,
+        closure: Rc<RefCell<Environment>>,
+    ) -> Self {
         let callable = Self {
             arity: params.len(),
             name: name.clone(),
@@ -124,25 +137,28 @@ impl Callable {
         callable
     }
 
-    pub fn call(&mut self, args: Vec<Value>, locals: HashMap<Expr, usize>) -> Result<Value, InterpretError> {
+    pub fn call(
+        &mut self,
+        args: Vec<Value>,
+        locals: HashMap<Expr, usize>,
+    ) -> Result<Value, InterpretError> {
         let mut new_interpreter = Interpreter::new_with_locals(self.closure.clone(), locals);
         new_interpreter.new_environment();
         for (i, arg) in args.iter().enumerate() {
             new_interpreter.define(self.params[i].lexeme.clone(), arg.clone());
         }
         match new_interpreter.interpret_block(self.body.clone()) {
-            Ok(_) => {
-                Ok(Value {
+            Ok(_) => Ok(Value {
                 primitive: Primitive::Nil,
-                token: Token::new(TokenType::NIL, String::from("nil"), 0)
-            })},
+                token: Token::new(TokenType::NIL, String::from("nil"), 0),
+            }),
             Err(e) => {
                 if let Some(value) = e.value {
                     Ok(value)
                 } else {
                     Err(e)
                 }
-            },
+            }
         }
     }
 }
@@ -154,7 +170,17 @@ impl Display for Primitive {
             Primitive::Boolean(boolean) => write!(f, "{}", boolean),
             Primitive::Nil => write!(f, "nil"),
             Primitive::String(string) => write!(f, "\"{}\"", string),
-            Primitive::Callable(callable) => write!(f, "<fn> {}({})", callable.name.lexeme, callable.params.iter().map(|param| param.lexeme.clone()).collect::<Vec<String>>().join(", "))
+            Primitive::Callable(callable) => write!(
+                f,
+                "<fn> {}({})",
+                callable.name.lexeme,
+                callable
+                    .params
+                    .iter()
+                    .map(|param| param.lexeme.clone())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
         }
     }
 }

@@ -1,2 +1,5 @@
-var variable = 1;
-var variable = 2;
+var a = 5;
+return "Top level return";
+{
+    var a = 5;
+}
