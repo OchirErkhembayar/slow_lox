@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use crate::{interpreter::{Interpreter, InterpretError}, stmt::Stmt, token::{TokenType, Token}, expr::Expr};
+use crate::{interpreter::{Interpreter, InterpretError}, stmt::Stmt, token::Token, expr::Expr};
 
-struct Resolver {
+pub struct Resolver<'a> {
     stacks: Vec<HashMap<String, bool>>,
-    interpreter: Interpreter,
+    interpreter: &'a mut Interpreter,
 }
 
-impl Resolver {
-    pub fn new(interpreter: Interpreter) -> Self {
+impl<'a> Resolver<'a> {
+    pub fn new(interpreter: &'a mut Interpreter) -> Self {
         Self {
             stacks: Vec::new(),
             interpreter,
@@ -44,7 +44,7 @@ impl Resolver {
     }
 }
 
-impl Resolver {
+impl<'a> Resolver<'a> {
     pub fn resolve(&mut self, stmts: Vec<Stmt>) -> Result<(), InterpretError> {
         for stmt in stmts {
             self.resolve_stmt(stmt)?;
@@ -52,47 +52,128 @@ impl Resolver {
         Ok(())
     }
 
-    fn resolve_assignment_expr(&mut self) -> Result<(), InterpretError> {
-        Ok(())
-    }
-
     fn resolve_stmt(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
-        self.interpreter.interpret(stmt)
-    }
-
-    fn resolve_expr(&mut self, expr: crate::expr::Expr) -> Result<(), InterpretError> {
-        self.interpreter.interpret_expr(expr)?;
+        match stmt {
+            Stmt::Function(token, tokens, stmts) => {
+                self.declare(token.clone())?;
+                self.define(token.clone())?;
+                self.resolve_function(tokens, stmts)?;
+            },
+            Stmt::Expr(expr) => {
+                self.resolve_expr(expr)?;
+            },
+            Stmt::If(condition, then_branch, else_branch) => {
+                self.resolve_expr(condition)?;
+                self.resolve_stmt(*then_branch)?;
+                if let Some(else_stmt) = else_branch {
+                    self.resolve_stmt(*else_stmt)?;
+                }
+            },
+            Stmt::Print(expr) => {
+                self.resolve_expr(expr)?;
+            },
+            Stmt::Return(_, expr) => {
+                if let Some(expr) = expr {
+                    self.resolve_expr(expr)?;
+                }
+            },
+            Stmt::While(condition, body) => {
+                self.resolve_expr(condition)?;
+                self.resolve_stmt(*body)?;
+            },
+            Stmt::Block(stmts) => {
+                self.begin_scope();
+                self.resolve(stmts)?;
+                self.end_scope();
+            },
+            Stmt::Var(name, expr) => {
+                self.declare(name.clone())?;
+                if let Some(expr) = expr {
+                    self.resolve_expr(expr)?;
+                }
+                self.define(name)?;
+            },
+            Stmt::Assign(_, expr) => {
+                self.resolve_expr(expr)?;
+            },
+            Stmt::Break => {},
+        }
         Ok(())
     }
 
-    fn resolve_var(&mut self, stmt: Stmt) -> Result<(), InterpretError> {
-        if let Stmt::Var(name, initializer) = stmt {
-            self.declare(name.clone())?;
-            if let Some(initializer) = initializer {
-                self.resolve_expr(initializer)?;
-            }
-            self.define(name.clone())?;
-            if let Some(scope) = self.stacks.last_mut() {
-                scope.insert(name.lexeme, false);
-            }
-            Ok(())
-        } else {
-            Err(InterpretError::new(
-                String::from("Expected variable declaration."),
-                Token::new(TokenType::VAR, String::from(""), 0),
-            ))
+    fn resolve_expr(&mut self, expr: Expr) -> Result<(), InterpretError> {
+        match expr {
+            Expr::Call(call) => {
+                self.resolve_expr(*call.callee)?;
+                for arg in call.arguments {
+                    self.resolve_expr(arg)?;
+                }
+            },
+            Expr::Assign(assign) => {
+                self.resolve_expr(*assign.value.clone())?;
+                self.resolve_local(*assign.value, assign.name);
+            },
+            Expr::Binary(binary) => {
+                self.resolve_expr(*binary.left)?;
+                self.resolve_expr(*binary.right)?;
+            },
+            Expr::Grouping(grouping) => {
+                self.resolve_expr(*grouping.expression)?;
+            },
+            Expr::Literal(_) => {},
+            Expr::Logical(logical) => {
+                self.resolve_expr(*logical.left)?;
+                self.resolve_expr(*logical.right)?;
+            },
+            Expr::Unary(unary) => {
+                self.resolve_expr(*unary.right)?;
+            },
+            Expr::Variable(var) => {
+                if let Some(scope) = self.stacks.last_mut() {
+                    if scope.get(&var.name.lexeme) == Some(&false) {
+                        crate::error(var.name.line, "Cannot read local variable in its own initializer.");
+                    }
+                }
+                self.resolve_var_expr(Expr::Variable(var))?;
+            },
+            Expr::Ternary(ternary) => {
+                self.resolve_expr(*ternary.condition)?;
+                self.resolve_expr(*ternary.then_branch)?;
+                self.resolve_expr(*ternary.else_branch)?;
+            },
         }
+        Ok(())
     }
 
-    fn resolve_var_expr(&mut self,expr: Expr) {
+    fn resolve_var_expr(&mut self, expr: Expr) -> Result<(), InterpretError> {
+        let expr_clone = expr.clone();
         if let Expr::Variable(var) = expr {
             if let Some(scope) = self.stacks.last_mut() {
                 if scope.get(&var.name.lexeme) == Some(&false) {
                     crate::error(var.name.line, "Cannot read local variable in its own initializer.");
                 }
             }
-            if let Some(scope) = self.stacks.last_mut() {
-                scope.insert(var.name.lexeme, true);
+            self.resolve_local(expr_clone, var.name);
+        }
+        Ok(())
+    }
+
+    fn resolve_function(&mut self, params: Vec<Token>, stmts: Vec<Stmt>) -> Result<(), InterpretError> {
+        self.begin_scope();
+        for param in params {
+            self.declare(param.clone())?;
+            self.define(param.clone())?;
+        }
+        self.resolve(stmts)?;
+        self.end_scope();
+        Ok(())
+    }
+
+    fn resolve_local(&mut self, expr: Expr, name: Token) {
+        for (i, scope) in self.stacks.iter().enumerate().rev() {
+            if scope.contains_key(&name.lexeme) {
+                self.interpreter.resolve(expr, i);
+                return;
             }
         }
     }

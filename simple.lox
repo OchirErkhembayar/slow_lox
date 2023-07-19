@@ -1,0 +1,18 @@
+var b = 5;
+{
+}
+
+var a = true;
+
+fun print_b() {
+    if (a) {
+        print "a is true";
+    }
+    print b;
+}
+
+print_b();
+
+for (var i = 0; i < 3; i = i + 1) {
+    print i;
+}

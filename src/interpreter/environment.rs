@@ -24,15 +24,28 @@ impl Environment {
         }
     }
 
-    pub fn get(&self, name: &str) -> Option<Value> {
+    pub fn get_global(&self, name: &str) -> Option<Value> {
+        let mut environment = self.clone();
+        while let Some(enclosing) = environment.enclosing {
+            environment = enclosing.as_ref().borrow().clone();
+        }
+        environment.get(0, name)
+    }
+
+    pub fn get(&self, distance: usize, name: &str) -> Option<Value> {
         if self.values.contains_key(name) {
             self.values.get(name).cloned()
         } else {
-            match &self.enclosing {
-                Some(enclosing) => enclosing.as_ref().borrow().get(name),
-                None => None,
-            }
+            self.ancestor(distance).as_ref().borrow().get(distance, name)
         }
+    }
+
+    fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment>> {
+        let mut environment = self.enclosing.as_ref().unwrap().borrow().clone();
+        for _ in 0..distance {
+            environment = environment.enclosing.unwrap().as_ref().borrow().clone();
+        }
+        Rc::new(RefCell::new(environment))
     }
 
     pub fn define(&mut self, name: String, value: Value) {
@@ -53,5 +66,17 @@ impl Environment {
             String::from("Undefined variable '"),
             value.token,
         ))
+    }
+
+    pub fn assign_at(&mut self, distance: usize, name: String, value: Value) {
+        self.ancestor(distance).as_ref().borrow_mut().values.insert(name, value);
+    }
+
+    pub fn assign_global(&mut self, name: String, value: Value) {
+        let mut environment = self.clone();
+        while let Some(enclosing) = environment.enclosing {
+            environment = enclosing.as_ref().borrow().clone();
+        }
+        environment.values.insert(name, value);
     }
 }

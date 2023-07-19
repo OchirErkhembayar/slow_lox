@@ -5,12 +5,14 @@ use core::fmt::Display;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::collections::HashMap;
 use environment::Environment;
 
 pub mod environment;
 
 pub struct Interpreter {
     pub environment: Rc<RefCell<Environment>>,
+    pub locals: HashMap<Expr, usize>,
 }
 
 #[derive(Debug)]
@@ -48,15 +50,28 @@ impl Interpreter {
     pub fn new(environment: Rc<RefCell<Environment>>) -> Self {
         Self {
             environment,
+            locals: HashMap::new(),
         }
     }
 
-    fn get(&self, name: &str) -> Option<Value> {
-        self.environment.borrow().get(name)
+    pub fn new_with_locals(environment: Rc<RefCell<Environment>>, locals: HashMap<Expr, usize>) -> Self {
+        Self {
+            environment,
+            locals,
+        }
     }
 
     pub fn define(&mut self, name: String, value: Value) {
         self.environment.borrow_mut().define(name, value);
+    }
+
+    pub fn get_local(&mut self, expr: &Expr) -> Option<usize> {
+        let distance = self.locals.get(expr);
+        if let Some(distance) = distance {
+            return Some(*distance);
+        } else {
+            None
+        }
     }
 
     fn assign(&mut self, token: Token, value: Value) -> Result<(), InterpretError> {
@@ -66,6 +81,19 @@ impl Interpreter {
     pub fn new_environment(&mut self) {
         let previous = self.environment.clone();
         self.environment = Rc::new(RefCell::new(Environment::new(previous)));
+    }
+
+    pub fn resolve(&mut self, expr: Expr, depth: usize) {
+        self.locals.insert(expr, depth);
+    }
+
+    fn look_up_var(&self, name: &Token, expr: &Expr) -> Result<Value, InterpretError> {
+        let distance = self.locals.get(expr);
+        if let Some(distance) = distance {
+            self.environment.borrow().get(*distance, name.lexeme.as_str())
+        } else {
+            self.environment.borrow().get_global(name.lexeme.as_str())
+        }.ok_or_else(|| InterpretError::new(format!("Undefined variable '{}'.", name.lexeme), name.clone()))
     }
 
     fn is_truthy(&self, value: &Value) -> bool {
@@ -203,7 +231,7 @@ impl Interpreter {
     }
 
     pub fn interpret_expr(&mut self, expr: Expr) -> Result<Value, InterpretError> {
-        match expr {
+        match expr.clone() {
             Expr::Call(call) => {
                 let callee = self.interpret_expr(*call.callee)?;
                 let mut arguments = Vec::new();
@@ -222,7 +250,7 @@ impl Interpreter {
                                 call.paren,
                             ));
                         }
-                        callable.call(arguments)
+                        callable.call(arguments, self.locals.clone())
                     }
                     _ => Err(InterpretError::new(
                         "Can only call functions and classes.".to_string(),
@@ -414,16 +442,19 @@ impl Interpreter {
                 }
             }
             Expr::Variable(variable) => {
-                let value = self.get(&variable.name.lexeme);
-                match value {
-                    Some(value) => Ok(value),
-                    None => Err(InterpretError::new(
-                        format!("Undefined variable: {}", variable.name.lexeme),
-                        variable.name,
-                    ))
-                }
+                Ok(self.look_up_var(&variable.name, &expr)?)
             }
-            Expr::Assign(assign) => Ok(self.interpret_expr(*assign.value)?),
+            Expr::Assign(assign) => {
+                let distance = self.get_local(&expr);
+                if let Some(distance) = distance.clone() {
+                    let expr = self.interpret_expr(*assign.value.clone())?;
+                    self.environment.borrow_mut().assign_at(distance, assign.name.lexeme.clone(), expr);
+                } else {
+                    let expr = self.interpret_expr(*assign.value.clone())?;
+                    self.environment.borrow_mut().assign_global(assign.name.lexeme.clone(), expr);
+                }
+                Ok(self.interpret_expr(*assign.value)?)
+            },
             Expr::Logical(logical) => {
                 let left = self.interpret_expr(*logical.left)?;
                 if logical.operator.token_type == TokenType::OR {

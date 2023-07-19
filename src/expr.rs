@@ -1,8 +1,8 @@
-use std::{fmt::{Debug, Display}, rc::Rc, cell::RefCell};
+use std::{fmt::{Debug, Display}, rc::Rc, cell::RefCell, collections::HashMap};
 
 use crate::{token::{Token, TokenType}, interpreter::{InterpretError, Interpreter, environment::Environment}, stmt::Stmt};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
@@ -16,7 +16,7 @@ pub enum Expr {
 }
 
 // 1 + 2, 3 * 4, etc.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Binary {
     pub left: Box<Expr>,
     pub operator: Token,
@@ -24,51 +24,51 @@ pub struct Binary {
 }
 
 // (expression)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Grouping {
     pub expression: Box<Expr>,
 }
 
 // true, false, nil, 1, 2, 3, etc.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Literal {
     pub value: Token,
 }
 
 // -1, !true, etc.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Unary {
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
 // condition ? then_branch : else_branch
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ternary {
     pub condition: Box<Expr>,
     pub then_branch: Box<Expr>,
     pub else_branch: Box<Expr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Variable {
     pub name: Token,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Assignment {
     pub name: Token,
     pub value: Box<Expr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Logical {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Call {
     pub callee: Box<Expr>,
     pub paren: Token,
@@ -119,17 +119,13 @@ impl Callable {
             name: name.clone(),
             params,
             body,
-            closure: Rc::new((*closure).clone()),
+            closure,
         };
-        callable.closure.borrow_mut().define(name.lexeme.clone(), Value {
-            primitive: Primitive::Callable(callable.clone()),
-            token: name.clone(),
-        });
         callable
     }
 
-    pub fn call(&mut self, args: Vec<Value>) -> Result<Value, InterpretError> {
-        let mut new_interpreter = Interpreter::new(self.closure.clone());
+    pub fn call(&mut self, args: Vec<Value>, locals: HashMap<Expr, usize>) -> Result<Value, InterpretError> {
+        let mut new_interpreter = Interpreter::new_with_locals(self.closure.clone(), locals);
         new_interpreter.new_environment();
         for (i, arg) in args.iter().enumerate() {
             new_interpreter.define(self.params[i].lexeme.clone(), arg.clone());

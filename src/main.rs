@@ -1,6 +1,7 @@
 use std::{io::Write, rc::Rc, cell::RefCell};
 
 use interpreter::environment::Environment;
+use crate::resolver::Resolver;
 
 mod resolver;
 mod expr;
@@ -63,6 +64,14 @@ fn run(input: String) {
     let mut parser = crate::parser::Parser::new(tokens);
     if let Ok(stmts) = parser.parse() {
         let mut interpreter = interpreter::Interpreter::new(Rc::new(RefCell::new(Environment::global())));
+        let mut resolver = Resolver::new(&mut interpreter);
+        if let Err(e) = resolver.resolve(stmts.clone()) {
+            error(e.token.line, &e.message);
+            unsafe {
+                HAD_ERROR = true;
+            }
+            return;
+        }
         for stmt in stmts.into_iter() {
             match interpreter.interpret(stmt) {
                 Ok(_) => (),

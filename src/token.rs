@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -15,7 +15,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Eq, Hash)]
 #[allow(non_camel_case_types)]
 pub enum TokenType {
     // Single-character tokens.
